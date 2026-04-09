@@ -1,0 +1,36 @@
+name: emotion_diary
+description: AI-Driven Emotional Insight and Emotion Analysis Diary
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # State management
+  provider: ^6.1.1
+  # Local storage for diary entries
+  shared_preferences: ^2.2.2
+  # HTTP calls to AI API
+  http: ^1.2.0
+  # App icon
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  # Uncomment below to add custom fonts:
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700

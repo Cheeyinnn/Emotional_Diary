@@ -1,0 +1,157 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/diary_entry.dart';
+import '../services/ai_service.dart';
+
+class DiaryProvider extends ChangeNotifier {
+  List<DiaryEntry> _entries = [];
+  bool _isAnalyzing = false;
+  Map<String, dynamic>? _weeklySummary;
+  bool _isLoadingWeekly = false;
+
+  List<DiaryEntry> get entries => _entries;
+  bool get isAnalyzing => _isAnalyzing;
+  Map<String, dynamic>? get weeklySummary => _weeklySummary;
+  bool get isLoadingWeekly => _isLoadingWeekly;
+
+  List<DiaryEntry> get thisWeekEntries {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    return _entries.where((e) => e.createdAt.isAfter(
+      DateTime(weekStart.year, weekStart.month, weekStart.day),
+    )).toList();
+  }
+
+  List<DiaryEntry> get last7Days {
+    final cutoff = DateTime.now().subtract(const Duration(days: 7));
+    return _entries
+        .where((e) => e.createdAt.isAfter(cutoff))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  }
+
+  DiaryEntry? get todayEntry {
+    final today = DateTime.now();
+    try {
+      return _entries.firstWhere((e) =>
+          e.createdAt.year == today.year &&
+          e.createdAt.month == today.month &&
+          e.createdAt.day == today.day);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool get hasRiskFlag {
+    if (_entries.length < 3) return false;
+    final sorted = [..._entries]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return sorted.take(3).every((e) => e.mood <= 1);
+  }
+
+  DiaryProvider() {
+    _loadEntries();
+  }
+
+  Future<void> _loadEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList('diary_entries') ?? [];
+    _entries = raw
+        .map((s) => DiaryEntry.fromMap(jsonDecode(s) as Map<String, dynamic>))
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    notifyListeners();
+  }
+
+  Future<void> _saveEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      'diary_entries',
+      _entries.map((e) => jsonEncode(e.toMap())).toList(),
+    );
+  }
+
+  Future<DiaryEntry> addEntry({
+    required String entryText,
+    required int mood,
+  }) async {
+    final entry = DiaryEntry(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      entryText: entryText,
+      mood: mood,
+      createdAt: DateTime.now(),
+    );
+
+    _entries.insert(0, entry);
+    await _saveEntries();
+    notifyListeners();
+
+    // Trigger AI analysis in background
+    _analyzeEntry(entry);
+
+    return entry;
+  }
+
+  Future<void> _analyzeEntry(DiaryEntry entry) async {
+    _isAnalyzing = true;
+    notifyListeners();
+
+    try {
+      final result = await AiService.analyzeDiaryEntry(
+        entryText: entry.entryText,
+        mood: entry.mood,
+        recentEntries: last7Days.where((e) => e.id != entry.id).toList(),
+      );
+
+      final updated = entry.copyWith(
+        aiReflection: result['reflectiveSummary'] as String?,
+        triggerKeyword: result['triggerKeyword'] as String?,
+        emotionIntensity: (result['emotionIntensity'] as num?)?.toDouble(),
+      );
+
+      final idx = _entries.indexWhere((e) => e.id == entry.id);
+      if (idx != -1) {
+        _entries[idx] = updated;
+        await _saveEntries();
+      }
+    } catch (_) {
+      // Silently fail — entry is still saved without AI data
+    }
+
+    _isAnalyzing = false;
+    notifyListeners();
+  }
+
+  Future<void> loadWeeklySummary() async {
+    _isLoadingWeekly = true;
+    notifyListeners();
+
+    try {
+      _weeklySummary = await AiService.generateWeeklySummary(last7Days);
+    } catch (_) {
+      _weeklySummary = null;
+    }
+
+    _isLoadingWeekly = false;
+    notifyListeners();
+  }
+
+  Future<void> deleteEntry(String id) async {
+    _entries.removeWhere((e) => e.id == id);
+    await _saveEntries();
+    notifyListeners();
+  }
+
+  /// Returns mood value for a specific date, or null if no entry
+  int? getMoodForDate(DateTime date) {
+    try {
+      final entry = _entries.firstWhere((e) =>
+          e.createdAt.year == date.year &&
+          e.createdAt.month == date.month &&
+          e.createdAt.day == date.day);
+      return entry.mood;
+    } catch (_) {
+      return null;
+    }
+  }
+}
