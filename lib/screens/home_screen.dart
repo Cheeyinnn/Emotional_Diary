@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
+import '../utils/transitions.dart';
 import 'log_mood_screen.dart';
 import 'insight_screen.dart';
 import 'calendar_screen.dart';
+import 'profile_screen.dart';
+import 'breathing_screen.dart';
+import 'mood_detail_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,12 +25,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _HomeTab(),
     CalendarScreen(),
     InsightScreen(),
+    ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -37,9 +43,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.white,
           selectedItemColor: const Color(0xFF1D9E75),
           unselectedItemColor: const Color(0xFFB4B2A9),
-          selectedLabelStyle: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600),
+          selectedLabelStyle:
+              const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
+          type: BottomNavigationBarType.fixed,
           elevation: 0,
           items: const [
             BottomNavigationBarItem(
@@ -54,12 +61,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.insights_outlined),
                 activeIcon: Icon(Icons.insights),
                 label: 'Insights'),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                activeIcon: Icon(Icons.person),
+                label: 'Profile'),
           ],
         ),
       ),
     );
   }
 }
+
+// ─── Home Tab ───────────────────────────────────────────────────────────────
 
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
@@ -69,32 +82,36 @@ class _HomeTab extends StatelessWidget {
     final provider = context.watch<DiaryProvider>();
     final last7 = provider.last7Days;
     final hasRisk = provider.hasRiskFlag;
+    final isAnalyzing = provider.isAnalyzing;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
+            // Top bar
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 22,
-                      backgroundColor: Color(0xFFE1F5EE),
-                      child: Text('A',
-                          style: TextStyle(
-                              color: Color(0xFF0F6E56),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 18)),
+                      backgroundColor: const Color(0xFFE1F5EE),
+                      child: Text(
+                        _userName(context)[0].toUpperCase(),
+                        style: const TextStyle(
+                            color: Color(0xFF0F6E56),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Au Xiao Xuan',
-                            style: TextStyle(
+                        Text(_userName(context),
+                            style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15,
                                 color: Color(0xFF1A1A2E))),
@@ -104,6 +121,39 @@ class _HomeTab extends StatelessWidget {
                       ],
                     ),
                     const Spacer(),
+                    // Search icon
+                    IconButton(
+                      icon: const Icon(Icons.search, color: Color(0xFF1A1A2E)),
+                      onPressed: () => Navigator.of(context).push(fadeRoute(const SearchScreen())),
+                    ),
+                    // AI analyzing badge
+                    if (isAnalyzing)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE1F5EE),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 10,
+                              height: 10,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: Color(0xFF1D9E75)),
+                            ),
+                            SizedBox(width: 6),
+                            Text('AI analyzing',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF0F6E56),
+                                    fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined,
                           color: Color(0xFF1A1A2E)),
@@ -119,34 +169,87 @@ class _HomeTab extends StatelessWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFAECE7),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFF5C4B3)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.favorite_border,
-                            color: Color(0xFF993C1D), size: 20),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            "We noticed your mood has been low recently. Would you like to try a breathing exercise?",
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF993C1D),
-                                height: 1.4),
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).push(slideUpRoute(const BreathingScreen())),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAECE7),
+                        borderRadius: BorderRadius.circular(12),
+                        border:
+                            Border.all(color: const Color(0xFFF5C4B3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.favorite_border,
+                              color: Color(0xFF993C1D), size: 20),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "Your mood has been low recently. Tap to try a breathing exercise 🧘",
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF993C1D),
+                                  height: 1.4),
+                            ),
                           ),
-                        ),
-                      ],
+                          Icon(Icons.chevron_right,
+                              color: Color(0xFF993C1D), size: 16),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
 
-            // Hero card - Balance your mind
+            // Today already logged banner
+            if (provider.todayEntry != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                  child: GestureDetector(
+                    onTap: () => Navigator.of(context).push(slideRightRoute(MoodDetailScreen(entry: provider.todayEntry!))),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE1F5EE),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF9FE1CB)),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(provider.todayEntry!.moodEmoji,
+                              style: const TextStyle(fontSize: 20)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Today's mood logged ✓",
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF085041))),
+                                Text(
+                                  'Feeling ${provider.todayEntry!.moodLabel} · Tap to view',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF0F6E56)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right,
+                              color: Color(0xFF1D9E75), size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // Hero card
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -154,8 +257,7 @@ class _HomeTab extends StatelessWidget {
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF1D9E75), Color(0xFF0F6E56)],
-                    ),
+                        colors: [Color(0xFF1D9E75), Color(0xFF0F6E56)]),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -173,8 +275,7 @@ class _HomeTab extends StatelessWidget {
                             SizedBox(height: 8),
                             Text('How are you feeling today?',
                                 style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white70)),
+                                    fontSize: 12, color: Colors.white70)),
                           ],
                         ),
                       ),
@@ -186,7 +287,8 @@ class _HomeTab extends StatelessWidget {
                           color: Colors.white.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.spa, color: Colors.white, size: 28),
+                        child:
+                            const Icon(Icons.spa, color: Colors.white, size: 28),
                       ),
                     ],
                   ),
@@ -212,7 +314,8 @@ class _HomeTab extends StatelessWidget {
                         Text('This Week',
                             style: TextStyle(
                                 fontSize: 12,
-                                color: const Color(0xFF1D9E75).withOpacity(0.8))),
+                                color: const Color(0xFF1D9E75)
+                                    .withOpacity(0.8))),
                       ],
                     ),
                     const SizedBox(height: 14),
@@ -242,7 +345,7 @@ class _HomeTab extends StatelessWidget {
                           label: 'Meditate',
                           color: const Color(0xFFE1F5EE),
                           iconColor: const Color(0xFF1D9E75),
-                          onTap: () {},
+                          onTap: () => Navigator.of(context).push(slideUpRoute(const BreathingScreen())),
                         ),
                         const SizedBox(width: 12),
                         _ActionCard(
@@ -250,18 +353,15 @@ class _HomeTab extends StatelessWidget {
                           label: 'Journal',
                           color: const Color(0xFFFAEEDA),
                           iconColor: const Color(0xFFBA7517),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const LogMoodScreen()),
-                          ),
+                          onTap: () => Navigator.of(context).push(slideUpRoute(const LogMoodScreen())),
                         ),
                         const SizedBox(width: 12),
                         _ActionCard(
-                          icon: Icons.chat_bubble_outline,
-                          label: 'Talk',
+                          icon: Icons.air,
+                          label: 'Breathe',
                           color: const Color(0xFFEEEDFE),
                           iconColor: const Color(0xFF534AB7),
-                          onTap: () {},
+                          onTap: () => Navigator.of(context).push(slideUpRoute(const BreathingScreen())),
                         ),
                       ],
                     ),
@@ -303,10 +403,11 @@ class _HomeTab extends StatelessWidget {
                     const SizedBox(height: 12),
                     _SuggestionCard(
                       icon: Icons.air,
-                      title: 'Deep Breathing',
+                      title: 'Box Breathing',
                       subtitle: 'Reduce stress instantly',
-                      duration: '3 MIN',
+                      duration: '5 MIN',
                       color: const Color(0xFFE1F5EE),
+                      onTap: () => Navigator.of(context).push(slideUpRoute(const BreathingScreen())),
                     ),
                     const SizedBox(height: 10),
                     _SuggestionCard(
@@ -315,20 +416,60 @@ class _HomeTab extends StatelessWidget {
                       subtitle: 'Reconnect with surroundings',
                       duration: '15 MIN',
                       color: const Color(0xFFEAF3DE),
+                      onTap: () {},
                     ),
                   ],
                 ),
               ),
             ),
 
+            // Recent entries
+            if (last7.isNotEmpty) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Recent Entries',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1A1A2E))),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text('See all',
+                            style: TextStyle(
+                                fontSize: 12, color: Color(0xFF1D9E75))),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (ctx, i) {
+                    final e = last7[i];
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(ctx).push(slideRightRoute(MoodDetailScreen(entry: e))),
+                        child: _RecentTile(entry: e),
+                      ),
+                    );
+                  },
+                  childCount: last7.take(3).length,
+                ),
+              ),
+            ],
+
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const LogMoodScreen()),
-        ),
+        onPressed: () => Navigator.of(context)
+            .push(slideUpRoute(const LogMoodScreen())),
         backgroundColor: const Color(0xFF1D9E75),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
@@ -344,7 +485,11 @@ class _HomeTab extends StatelessWidget {
     if (hour < 17) return 'Good afternoon 🌤';
     return 'Good evening 🌙';
   }
+
+  String _userName(BuildContext context) => 'Xiao Xuan';
 }
+
+// ─── Mood Week Row ─────────────────────────────────────────────────────────
 
 class _MoodWeekRow extends StatelessWidget {
   final List<DiaryEntry> entries;
@@ -367,49 +512,58 @@ class _MoodWeekRow extends StatelessWidget {
               e.createdAt.month == day.month &&
               e.createdAt.day == day.day);
         } catch (_) {}
-
         final isToday = day.day == now.day &&
             day.month == now.month &&
             day.year == now.year;
 
-        return Column(
-          children: [
-            Text(days[i],
-                style: TextStyle(
-                    fontSize: 10,
-                    color: isToday
-                        ? const Color(0xFF1D9E75)
-                        : const Color(0xFF888780),
-                    fontWeight:
-                        isToday ? FontWeight.w600 : FontWeight.w400)),
-            const SizedBox(height: 6),
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: entry != null
-                    ? entry.moodColor.withOpacity(0.15)
-                    : const Color(0xFFF0F0F0),
-                border: isToday
-                    ? Border.all(
-                        color: const Color(0xFF1D9E75), width: 1.5)
-                    : null,
+        return GestureDetector(
+          onTap: entry != null
+              ? () => Navigator.of(context).push(slideRightRoute(MoodDetailScreen(entry: entry!)))
+              : null,
+          child: Column(
+            children: [
+              Text(days[i],
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: isToday
+                          ? const Color(0xFF1D9E75)
+                          : const Color(0xFF888780),
+                      fontWeight: isToday
+                          ? FontWeight.w600
+                          : FontWeight.w400)),
+              const SizedBox(height: 6),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: entry != null
+                      ? entry.moodColor.withOpacity(0.15)
+                      : const Color(0xFFF0F0F0),
+                  border: isToday
+                      ? Border.all(
+                          color: const Color(0xFF1D9E75), width: 1.5)
+                      : null,
+                ),
+                child: Center(
+                  child: entry != null
+                      ? Text(entry.moodEmoji,
+                          style: const TextStyle(fontSize: 18))
+                      : Text(day.day.toString(),
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFFB4B2A9))),
+                ),
               ),
-              child: Center(
-                child: entry != null
-                    ? Text(entry.moodEmoji, style: const TextStyle(fontSize: 18))
-                    : Text(day.day.toString(),
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFFB4B2A9))),
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       }),
     );
   }
 }
+
+// ─── Widgets ──────────────────────────────────────────────────────────────
 
 class _ActionCard extends StatelessWidget {
   final IconData icon;
@@ -434,9 +588,7 @@ class _ActionCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(14),
-          ),
+              color: color, borderRadius: BorderRadius.circular(14)),
           child: Column(
             children: [
               Icon(icon, color: iconColor, size: 26),
@@ -460,6 +612,7 @@ class _SuggestionCard extends StatelessWidget {
   final String subtitle;
   final String duration;
   final Color color;
+  final VoidCallback onTap;
 
   const _SuggestionCard({
     required this.icon,
@@ -467,12 +620,75 @@ class _SuggestionCard extends StatelessWidget {
     required this.subtitle,
     required this.duration,
     required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration:
+                  BoxDecoration(color: color, shape: BoxShape.circle),
+              child:
+                  Icon(icon, color: const Color(0xFF1D9E75), size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A2E))),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF888780))),
+                ],
+              ),
+            ),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(duration,
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF888780))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentTile extends StatelessWidget {
+  final DiaryEntry entry;
+  const _RecentTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -481,42 +697,46 @@ class _SuggestionCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(icon, color: const Color(0xFF1D9E75), size: 22),
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: entry.moodColor.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+                child: Text(entry.moodEmoji,
+                    style: const TextStyle(fontSize: 20))),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
+                Text(entry.entryText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A1A2E))),
-                const SizedBox(height: 2),
-                Text(subtitle,
+                        fontSize: 12,
+                        color: Color(0xFF1A1A2E),
+                        height: 1.4)),
+                const SizedBox(height: 3),
+                Text(_timeAgo(entry.createdAt),
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF888780))),
+                        fontSize: 10, color: Color(0xFFB4B2A9))),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F0F0),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(duration,
-                style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF888780))),
-          ),
+          const Icon(Icons.chevron_right,
+              size: 16, color: Color(0xFFB4B2A9)),
         ],
       ),
     );
+  }
+
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }

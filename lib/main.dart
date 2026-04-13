@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/diary_provider.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/welcome_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => DiaryProvider(),
-      child: const EmotionDiaryApp(),
+      child: EmotionDiaryApp(showOnboarding: !onboardingDone),
     ),
   );
 }
 
 class EmotionDiaryApp extends StatelessWidget {
-  const EmotionDiaryApp({super.key});
+  final bool showOnboarding;
+  const EmotionDiaryApp({super.key, required this.showOnboarding});
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,7 @@ class EmotionDiaryApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Color(0xFF1A1A2E)),
         ),
       ),
-      home: const WelcomeScreen(),
+      home: showOnboarding ? const OnboardingScreen() : const WelcomeScreen(),
     );
   }
 }

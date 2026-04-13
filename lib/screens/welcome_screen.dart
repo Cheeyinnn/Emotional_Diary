@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/transitions.dart';
 import 'home_screen.dart';
 import 'signin_screen.dart';
 
@@ -70,7 +71,7 @@ class WelcomeScreen extends StatelessWidget {
                   height: 54,
                   child: ElevatedButton(
                     onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SignInScreen()),
+                      fadeScaleRoute(const SignInScreen()),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1D9E75),
@@ -99,7 +100,7 @@ class WelcomeScreen extends StatelessWidget {
                   height: 54,
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      fadeScaleRoute(const HomeScreen()),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF1D9E75),

@@ -9,13 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # State management
   provider: ^6.1.1
-  # Local storage for diary entries
   shared_preferences: ^2.2.2
-  # HTTP calls to AI API
   http: ^1.2.0
-  # App icon
+  fl_chart: ^0.68.0
+  # PDF export
+  pdf: ^3.10.8
+  path_provider: ^2.1.2
+  share_plus: ^9.0.0
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
@@ -25,12 +26,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # Uncomment below to add custom fonts:
-  # fonts:
-  #   - family: Inter
-  #     fonts:
-  #       - asset: assets/fonts/Inter-Regular.ttf
-  #       - asset: assets/fonts/Inter-Medium.ttf
-  #         weight: 500
-  #       - asset: assets/fonts/Inter-Bold.ttf
-  #         weight: 700
