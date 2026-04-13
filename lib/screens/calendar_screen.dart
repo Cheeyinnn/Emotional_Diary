@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import '../utils/transitions.dart';
 import 'package:provider/provider.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
+import 'mood_detail_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -13,79 +15,59 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _focusedMonth = DateTime.now();
 
-  void _prevMonth() => setState(() {
-        _focusedMonth =
-            DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1);
-      });
+  void _prevMonth() => setState(() =>
+      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1));
 
-  void _nextMonth() => setState(() {
-        _focusedMonth =
-            DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1);
-      });
+  void _nextMonth() => setState(() =>
+      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1));
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DiaryProvider>();
     final entries = provider.entries;
-
     final monthName = [
       'January','February','March','April','May','June',
       'July','August','September','October','November','December'
     ][_focusedMonth.month - 1];
 
-    final firstDay =
-        DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final lastDay =
-        DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
-    final startOffset = firstDay.weekday % 7; // 0=Sun, 1=Mon...
+    final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final lastDay = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+    final startOffset = firstDay.weekday % 7;
 
-    // Filter entries for this month
     final monthEntries = entries.where((e) =>
         e.createdAt.year == _focusedMonth.year &&
-        e.createdAt.month == _focusedMonth.month).toList();
+        e.createdAt.month == _focusedMonth.month).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text('Calendar'),
-        backgroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: const Text('Calendar'), backgroundColor: Colors.white),
       body: Column(
         children: [
-          // Calendar card
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             child: Column(
               children: [
-                // Month navigation
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: _prevMonth,
-                      color: const Color(0xFF1A1A2E),
-                    ),
-                    Text(
-                      '$monthName ${_focusedMonth.year}',
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A2E)),
-                    ),
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: _prevMonth),
+                    Text('$monthName ${_focusedMonth.year}',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A1A2E))),
                     IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: _nextMonth,
-                      color: const Color(0xFF1A1A2E),
-                    ),
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: _nextMonth),
                   ],
                 ),
-                const SizedBox(height: 8),
-
-                // Day of week headers
+                const SizedBox(height: 4),
                 Row(
-                  children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                  children: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
                       .map((d) => Expanded(
                             child: Center(
                               child: Text(d,
@@ -98,13 +80,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       .toList(),
                 ),
                 const SizedBox(height: 8),
-
-                // Calendar grid
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
                     childAspectRatio: 1,
                     mainAxisSpacing: 4,
@@ -113,25 +92,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   itemCount: startOffset + lastDay.day,
                   itemBuilder: (ctx, idx) {
                     if (idx < startOffset) return const SizedBox();
-
                     final dayNum = idx - startOffset + 1;
-                    final date = DateTime(
-                        _focusedMonth.year, _focusedMonth.month, dayNum);
+                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, dayNum);
                     final isToday = _isToday(date);
-
                     DiaryEntry? entry;
                     try {
-                      entry = monthEntries.firstWhere((e) =>
-                          e.createdAt.day == dayNum);
+                      entry = monthEntries.firstWhere(
+                          (e) => e.createdAt.day == dayNum);
                     } catch (_) {}
 
-                    return _CalendarDay(
-                      day: dayNum,
-                      entry: entry,
-                      isToday: isToday,
+                    return GestureDetector(
+                      onTap: entry != null
+                          ? () => Navigator.of(ctx).push(slideRightRoute(MoodDetailScreen(entry: entry!)))
+                          : null,
+                      child: _CalendarDay(
+                          day: dayNum, entry: entry, isToday: isToday),
                     );
                   },
                 ),
+              ],
+            ),
+          ),
+
+          // Mood legend
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _LegendItem(emoji: '😣', label: 'Awful'),
+                _LegendItem(emoji: '😞', label: 'Bad'),
+                _LegendItem(emoji: '😐', label: 'Okay'),
+                _LegendItem(emoji: '😊', label: 'Good'),
+                _LegendItem(emoji: '😄', label: 'Great'),
               ],
             ),
           ),
@@ -159,15 +152,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32),
-                      child: Text('No entries this month',
-                          style: TextStyle(
-                              fontSize: 13, color: Color(0xFF888780))),
+                      child: Column(
+                        children: [
+                          Text('📭', style: TextStyle(fontSize: 40)),
+                          SizedBox(height: 8),
+                          Text('No entries this month',
+                              style: TextStyle(
+                                  fontSize: 13, color: Color(0xFF888780))),
+                        ],
+                      ),
                     ),
                   )
                 else
-                  ...monthEntries
-                      .map((e) => _HistoryTile(entry: e))
-                      .toList(),
+                  ...monthEntries.map((e) => GestureDetector(
+                        onTap: () => Navigator.of(context).push(slideRightRoute(MoodDetailScreen(entry: e))),
+                        child: _HistoryTile(entry: e),
+                      )),
               ],
             ),
           ),
@@ -188,12 +188,7 @@ class _CalendarDay extends StatelessWidget {
   final int day;
   final DiaryEntry? entry;
   final bool isToday;
-
-  const _CalendarDay({
-    required this.day,
-    required this.entry,
-    required this.isToday,
-  });
+  const _CalendarDay({required this.day, required this.entry, required this.isToday});
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +196,7 @@ class _CalendarDay extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: entry != null
-            ? entry!.moodColor.withOpacity(0.12)
+            ? entry!.moodColor.withOpacity(0.15)
             : isToday
                 ? const Color(0xFFE1F5EE)
                 : Colors.transparent,
@@ -211,19 +206,37 @@ class _CalendarDay extends StatelessWidget {
       ),
       child: Center(
         child: entry != null
-            ? Text(entry!.moodEmoji,
-                style: const TextStyle(fontSize: 16))
-            : Text(
-                day.toString(),
+            ? Text(entry!.moodEmoji, style: const TextStyle(fontSize: 16))
+            : Text(day.toString(),
                 style: TextStyle(
                     fontSize: 11,
                     color: isToday
                         ? const Color(0xFF1D9E75)
                         : const Color(0xFF1A1A2E),
-                    fontWeight: isToday
-                        ? FontWeight.w700
-                        : FontWeight.w400),
-              ),
+                    fontWeight:
+                        isToday ? FontWeight.w700 : FontWeight.w400)),
+      ),
+    );
+  }
+}
+
+class _LegendItem extends StatelessWidget {
+  final String emoji;
+  final String label;
+  const _LegendItem({required this.emoji, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 2),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 9, color: Color(0xFF888780))),
+        ],
       ),
     );
   }
@@ -235,10 +248,7 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
-    ];
+    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -290,31 +300,28 @@ class _HistoryTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  entry.entryText,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF444441),
-                      height: 1.5),
-                ),
-                if (entry.aiReflection != null) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    'AI: ${entry.aiReflection}',
+                Text(entry.entryText,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF1D9E75),
-                        fontStyle: FontStyle.italic,
-                        height: 1.4),
-                  ),
+                        fontSize: 12,
+                        color: Color(0xFF444441),
+                        height: 1.5)),
+                if (entry.aiReflection != null) ...[
+                  const SizedBox(height: 4),
+                  Text('AI: ${entry.aiReflection}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF1D9E75),
+                          fontStyle: FontStyle.italic)),
                 ],
               ],
             ),
           ),
+          const Icon(Icons.chevron_right,
+              size: 16, color: Color(0xFFB4B2A9)),
         ],
       ),
     );

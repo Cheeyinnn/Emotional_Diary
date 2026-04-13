@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/transitions.dart';
 import 'home_screen.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -23,7 +24,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _signIn() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      fadeScaleRoute(const HomeScreen()),
     );
   }
 
@@ -125,7 +126,7 @@ class _SignInScreenState extends State<SignInScreen> {
               Center(
                 child: TextButton(
                   onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    fadeScaleRoute(const HomeScreen()),
                   ),
                   child: RichText(
                     text: const TextSpan(

@@ -4,19 +4,27 @@ import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'ai_respond_screen.dart';
 
+/// Used for both creating a new entry AND editing an existing one.
+/// Pass [existingEntry] to enter edit mode.
 class LogMoodScreen extends StatefulWidget {
-  const LogMoodScreen({super.key});
+  final DiaryEntry? existingEntry;
+  const LogMoodScreen({super.key, this.existingEntry});
+
+  bool get isEditing => existingEntry != null;
 
   @override
   State<LogMoodScreen> createState() => _LogMoodScreenState();
 }
 
-class _LogMoodScreenState extends State<LogMoodScreen> {
-  int _selectedMood = 2; // default Okay
+class _LogMoodScreenState extends State<LogMoodScreen>
+    with SingleTickerProviderStateMixin {
+  int _selectedMood = 2;
   final _textCtrl = TextEditingController();
   bool _isSaving = false;
+  late AnimationController _emojiAnimCtrl;
+  late Animation<double> _emojiScale;
 
-  final _moods = [
+  static const _moods = [
     {'emoji': '😣', 'label': 'Awful', 'color': Color(0xFFE24B4A)},
     {'emoji': '😞', 'label': 'Bad', 'color': Color(0xFFEF9F27)},
     {'emoji': '😐', 'label': 'Okay', 'color': Color(0xFF888780)},
@@ -25,9 +33,34 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-fill if editing
+    if (widget.existingEntry != null) {
+      _selectedMood = widget.existingEntry!.mood;
+      _textCtrl.text = widget.existingEntry!.entryText == 'No note added.'
+          ? ''
+          : widget.existingEntry!.entryText;
+    }
+    _emojiAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _emojiScale = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _emojiAnimCtrl, curve: Curves.easeOut),
+    );
+  }
+
+  @override
   void dispose() {
     _textCtrl.dispose();
+    _emojiAnimCtrl.dispose();
     super.dispose();
+  }
+
+  void _selectMood(int i) {
+    setState(() => _selectedMood = i);
+    _emojiAnimCtrl.forward().then((_) => _emojiAnimCtrl.reverse());
   }
 
   Future<void> _save() async {
@@ -35,20 +68,47 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
     setState(() => _isSaving = true);
 
     final provider = context.read<DiaryProvider>();
-    final entry = await provider.addEntry(
-      entryText: _textCtrl.text.trim().isEmpty
-          ? 'No note added.'
-          : _textCtrl.text.trim(),
-      mood: _selectedMood,
-    );
+    final text = _textCtrl.text.trim().isEmpty
+        ? 'No note added.'
+        : _textCtrl.text.trim();
 
-    if (!mounted) return;
-
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => AiRespondScreen(entry: entry),
-      ),
-    );
+    try {
+      DiaryEntry entry;
+      if (widget.isEditing) {
+        // ── Edit mode ──
+        entry = await provider.editEntry(
+          id: widget.existingEntry!.id,
+          entryText: text,
+          mood: _selectedMood,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Entry updated!'),
+            backgroundColor: Color(0xFF1D9E75),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.of(context).pop(entry); // Return updated entry to caller
+      } else {
+        // ── Create mode ──
+        entry = await provider.addEntry(entryText: text, mood: _selectedMood);
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          _fadeRoute(AiRespondScreen(entry: entry)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save: $e'),
+          backgroundColor: const Color(0xFFE24B4A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -59,17 +119,11 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Log Mood'),
+        title: Text(widget.isEditing ? 'Edit Entry' : 'Log Mood'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -77,43 +131,83 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 32),
-              Text(
-                'How are you\nfeeling today',
-                textAlign: TextAlign.center,
+              const SizedBox(height: 28),
+
+              // Edit mode badge
+              if (widget.isEditing)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAEEDA),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit, size: 13, color: Color(0xFFBA7517)),
+                      SizedBox(width: 4),
+                      Text('Editing existing entry',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF633806),
+                              fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 250),
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
                   color: moodColor,
                   height: 1.3,
                 ),
-              ),
-              const SizedBox(height: 8),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
                 child: Text(
-                  mood['emoji'] as String,
-                  key: ValueKey(_selectedMood),
-                  style: const TextStyle(fontSize: 52),
+                  widget.isEditing
+                      ? 'Update your\nfeeling'
+                      : 'How are you\nfeeling today',
+                  textAlign: TextAlign.center,
                 ),
               ),
-              Text(
-                mood['label'] as String,
+              const SizedBox(height: 8),
+
+              // Bouncing emoji
+              ScaleTransition(
+                scale: _emojiScale,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  transitionBuilder: (child, anim) => ScaleTransition(
+                    scale: anim,
+                    child: child,
+                  ),
+                  child: Text(
+                    mood['emoji'] as String,
+                    key: ValueKey(_selectedMood),
+                    style: const TextStyle(fontSize: 52),
+                  ),
+                ),
+              ),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 250),
                 style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: moodColor),
+                child: Text(mood['label'] as String),
               ),
               const SizedBox(height: 28),
 
-              // Emoji selector
+              // Emoji selector row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(5, (i) {
                   final m = _moods[i];
                   final selected = _selectedMood == i;
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedMood = i),
+                    onTap: () => _selectMood(i),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.all(10),
@@ -124,7 +218,8 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
                         borderRadius: BorderRadius.circular(14),
                         border: selected
                             ? Border.all(
-                                color: (m['color'] as Color).withOpacity(0.4),
+                                color:
+                                    (m['color'] as Color).withOpacity(0.4),
                                 width: 1.5)
                             : null,
                       ),
@@ -167,6 +262,7 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
                     controller: _textCtrl,
                     maxLines: null,
                     expands: true,
+                    autofocus: widget.isEditing,
                     textAlignVertical: TextAlignVertical.top,
                     style: const TextStyle(
                         fontSize: 14,
@@ -175,8 +271,8 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
                     decoration: const InputDecoration(
                       hintText:
                           'Add a note... What happened today? How did it make you feel?',
-                      hintStyle:
-                          TextStyle(color: Color(0xFFB4B2A9), fontSize: 13),
+                      hintStyle: TextStyle(
+                          color: Color(0xFFB4B2A9), fontSize: 13),
                       border: InputBorder.none,
                     ),
                   ),
@@ -205,9 +301,13 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
                           height: 18,
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2))
-                      : const Icon(Icons.save_outlined, size: 20),
+                      : Icon(
+                          widget.isEditing ? Icons.check : Icons.save_outlined,
+                          size: 20),
                   label: Text(
-                    _isSaving ? 'Analyzing...' : 'Save My Details',
+                    _isSaving
+                        ? (widget.isEditing ? 'Updating...' : 'Analyzing...')
+                        : (widget.isEditing ? 'Update Entry' : 'Save My Details'),
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600),
                   ),
@@ -221,3 +321,10 @@ class _LogMoodScreenState extends State<LogMoodScreen> {
     );
   }
 }
+
+PageRouteBuilder _fadeRoute(Widget page) => PageRouteBuilder(
+      pageBuilder: (_, __, ___) => page,
+      transitionsBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
+      transitionDuration: const Duration(milliseconds: 300),
+    );

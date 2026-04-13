@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/diary_entry.dart';
 import '../providers/diary_provider.dart';
 import '../services/ai_service.dart';
+import '../utils/transitions.dart';
 import 'home_screen.dart';
 
 class AiRespondScreen extends StatefulWidget {
@@ -54,7 +55,7 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          fadeScaleRoute(const HomeScreen()),
             (r) => false,
           ),
         ),
@@ -304,7 +305,7 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
         // Skip button
         TextButton(
           onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          fadeScaleRoute(const HomeScreen()),
             (r) => false,
           ),
           child: const Text('Skip for Now',

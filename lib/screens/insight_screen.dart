@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../utils/transitions.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
+import 'mood_detail_screen.dart';
 
 class InsightScreen extends StatefulWidget {
   const InsightScreen({super.key});
@@ -26,12 +29,10 @@ class _InsightScreenState extends State<InsightScreen> {
     final summary = provider.weeklySummary;
     final isLoading = provider.isLoadingWeekly;
 
-    // Mood distribution count
     final moodCounts = List<int>.filled(5, 0);
     for (final e in entries) {
       moodCounts[e.mood.clamp(0, 4)]++;
     }
-    final maxCount = moodCounts.reduce((a, b) => a > b ? a : b);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -42,320 +43,423 @@ class _InsightScreenState extends State<InsightScreen> {
           IconButton(
             icon: const Icon(Icons.refresh_outlined),
             onPressed: () => provider.loadWeeklySummary(),
+            tooltip: 'Refresh',
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+
           // Risk alert
           if (summary?['riskFlag'] == true) ...[
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAECE7),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFF5C4B3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber_outlined,
-                      color: Color(0xFF993C1D), size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      summary?['riskMessage'] as String? ??
-                          'Your mood has worsened recently. Please be gentle with yourself.',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF993C1D),
-                          height: 1.4),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _alertBanner(summary?['riskMessage'] as String?),
             const SizedBox(height: 16),
           ],
 
-          // Weekly header
-          const Text('This Week',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A2E))),
-          const SizedBox(height: 4),
-          Text('${entries.length} entries logged',
-              style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF888780))),
-          const SizedBox(height: 20),
-
-          // Stats row
+          // Header stats
           Row(
             children: [
               _StatCard(
-                label: 'Dominant Mood',
-                value: isLoading
-                    ? '...'
-                    : (summary?['dominantEmotion'] as String? ?? '—'),
+                label: 'Dominant\nMood',
+                value: isLoading ? '...' : (summary?['dominantEmotion'] as String? ?? '—'),
                 icon: Icons.mood,
                 color: const Color(0xFFE1F5EE),
                 iconColor: const Color(0xFF1D9E75),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               _StatCard(
-                label: 'Avg Score',
+                label: 'Avg\nScore',
                 value: isLoading
                     ? '...'
-                    : ((summary?['avgMoodScore'] as num?)?.toStringAsFixed(1) ??
-                        '—'),
+                    : entries.isEmpty
+                        ? '—'
+                        : (entries.map((e) => e.mood).reduce((a, b) => a + b) /
+                                entries.length)
+                            .toStringAsFixed(1),
                 icon: Icons.bar_chart,
                 color: const Color(0xFFEEEDFE),
                 iconColor: const Color(0xFF534AB7),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               _StatCard(
-                label: 'Main Trigger',
-                value: isLoading
-                    ? '...'
-                    : (summary?['recurringTrigger'] as String? ?? '—'),
-                icon: Icons.bolt_outlined,
+                label: 'Entries\nThis Week',
+                value: entries.length.toString(),
+                icon: Icons.book_outlined,
                 color: const Color(0xFFFAEEDA),
                 iconColor: const Color(0xFFBA7517),
-                small: true,
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // Mood distribution bar chart
+          // 7-day mood trend LINE CHART
+          if (entries.isNotEmpty) ...[
+            _sectionTitle('7-Day Mood Trend'),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.fromLTRB(8, 16, 16, 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+              ),
+              child: SizedBox(
+                height: 160,
+                child: _MoodLineChart(entries: entries),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // Mood distribution BAR CHART
+          _sectionTitle('Mood Distribution'),
+          const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: const Color(0xFFE0E0E0), width: 0.5),
+              border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Your statistics',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A1A2E))),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(5, (i) {
-                    final labels = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
-                    final emojis = ['😣', '😞', '😐', '😊', '😄'];
-                    final colors = [
-                      const Color(0xFFE24B4A),
-                      const Color(0xFFEF9F27),
-                      const Color(0xFF888780),
-                      const Color(0xFF1D9E75),
-                      const Color(0xFF378ADD),
-                    ];
-                    final count = moodCounts[i];
-                    final barH = maxCount == 0
-                        ? 0.0
-                        : (count / maxCount) * 80.0;
-
-                    return Column(
-                      children: [
-                        Text(count.toString(),
-                            style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1A1A2E))),
-                        const SizedBox(height: 4),
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 500),
-                          curve: Curves.easeOut,
-                          width: 36,
-                          height: barH > 0 ? barH : 4,
-                          decoration: BoxDecoration(
-                            color: count > 0
-                                ? colors[i]
-                                : const Color(0xFFF0F0F0),
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(6)),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(emojis[i],
-                            style: const TextStyle(fontSize: 16)),
-                        Text(labels[i],
-                            style: const TextStyle(
-                                fontSize: 9,
-                                color: Color(0xFFB4B2A9))),
-                      ],
-                    );
-                  }),
-                ),
-              ],
+            child: SizedBox(
+              height: 160,
+              child: _MoodBarChart(moodCounts: moodCounts),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
 
-          // AI Summary
+          // AI Summary card
+          _sectionTitle('AI Weekly Summary'),
+          const SizedBox(height: 10),
           if (isLoading)
-            const Center(
-                child: Padding(
-              padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(color: Color(0xFF1D9E75)),
-            ))
-          else if (summary != null) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: const Color(0xFFE0E0E0), width: 0.5),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.auto_awesome,
-                          color: Color(0xFF1D9E75), size: 18),
-                      const SizedBox(width: 8),
-                      const Text('AI Generated Summary',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF1A1A2E))),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    summary['weeklySummary'] as String? ?? '',
-                    style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF444441),
-                        height: 1.7),
-                  ),
-                  if ((summary['sourceOfNegativity'] as String?)
-                          ?.isNotEmpty ==
-                      true) ...[
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _InfoChip(
-                            label: 'Source of negativity',
-                            value: summary['sourceOfNegativity'] as String,
-                            color: const Color(0xFFFAECE7),
-                            textColor: const Color(0xFF993C1D),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _InfoChip(
-                            label: 'Triggers of bad mood',
-                            value: summary['recurringTrigger'] as String? ??
-                                '—',
-                            color: const Color(0xFFFAEEDA),
-                            textColor: const Color(0xFF633806),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+            _loadingCard()
+          else if (summary != null)
+            _AiSummaryCard(summary: summary)
+          else
+            _emptyCard('No summary yet. Log entries and tap refresh!'),
+          const SizedBox(height: 20),
 
-          // Recent entries list
+          // Recent entries
           if (entries.isNotEmpty) ...[
-            const Text('Recent Entries',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A2E))),
-            const SizedBox(height: 12),
-            ...entries.take(5).map((e) => _EntryTile(entry: e)),
-          ] else
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(40),
-                child: Column(
-                  children: [
-                    const Icon(Icons.book_outlined,
-                        size: 48, color: Color(0xFFD3D1C7)),
-                    const SizedBox(height: 12),
-                    const Text('No entries this week',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF888780))),
-                    const SizedBox(height: 4),
-                    const Text('Start journaling to see your AI insights',
-                        style:
-                            TextStyle(fontSize: 12, color: Color(0xFFB4B2A9))),
-                  ],
+            _sectionTitle('Recent Entries'),
+            const SizedBox(height: 10),
+            ...entries.take(5).map(
+                  (e) => GestureDetector(
+                    onTap: () => Navigator.of(context).push(slideRightRoute(MoodDetailScreen(entry: e))),
+                    child: _EntryTile(entry: e),
+                  ),
                 ),
+          ] else
+            _emptyCard('No entries this week.\nStart journaling to see your AI insights! 📔'),
+
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertBanner(String? msg) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAECE7),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF5C4B3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_outlined,
+                color: Color(0xFF993C1D), size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                msg ??
+                    'Your mood has been low recently. Please be gentle with yourself.',
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF993C1D),
+                    height: 1.4),
               ),
             ),
-          const SizedBox(height: 32),
+          ],
+        ),
+      );
+
+  Widget _sectionTitle(String title) => Text(title,
+      style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1A1A2E)));
+
+  Widget _loadingCard() => Container(
+        height: 80,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+        ),
+        child: const CircularProgressIndicator(color: Color(0xFF1D9E75)),
+      );
+
+  Widget _emptyCard(String msg) => Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+        ),
+        child: Text(msg,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF888780),
+                height: 1.5)),
+      );
+}
+
+// ─── Line Chart ─────────────────────────────────────────────────────────────
+
+class _MoodLineChart extends StatelessWidget {
+  final List<DiaryEntry> entries;
+  const _MoodLineChart({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    // Build spots: sorted by date, x = days ago (0-6), y = mood (0-4)
+    final now = DateTime.now();
+    final spots = entries
+        .map((e) {
+          final daysAgo = now.difference(e.createdAt).inDays;
+          return FlSpot((6 - daysAgo).toDouble(), e.mood.toDouble());
+        })
+        .where((s) => s.x >= 0 && s.x <= 6)
+        .toList()
+      ..sort((a, b) => a.x.compareTo(b.x));
+
+    final dayLabels = List.generate(7, (i) {
+      final d = now.subtract(Duration(days: 6 - i));
+      return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.weekday % 7];
+    });
+
+    return LineChart(
+      LineChartData(
+        minY: 0,
+        maxY: 4,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 1,
+          getDrawingHorizontalLine: (_) => FlLine(
+            color: const Color(0xFFF0F0F0),
+            strokeWidth: 1,
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              interval: 1,
+              reservedSize: 28,
+              getTitlesWidget: (v, _) {
+                const emojis = ['😣','😞','😐','😊','😄'];
+                final i = v.toInt();
+                if (i < 0 || i > 4) return const SizedBox();
+                return Text(emojis[i], style: const TextStyle(fontSize: 12));
+              },
+            ),
+          ),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i >= dayLabels.length) return const SizedBox();
+                return Text(dayLabels[i],
+                    style: const TextStyle(
+                        fontSize: 9, color: Color(0xFFB4B2A9)));
+              },
+            ),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: const Color(0xFF1D9E75),
+            barWidth: 2.5,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
+                radius: 4,
+                color: Colors.white,
+                strokeWidth: 2,
+                strokeColor: const Color(0xFF1D9E75),
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: const Color(0xFF1D9E75).withOpacity(0.08),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final Color iconColor;
-  final bool small;
+// ─── Bar Chart ───────────────────────────────────────────────────────────────
 
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.iconColor,
-    this.small = false,
-  });
+class _MoodBarChart extends StatelessWidget {
+  final List<int> moodCounts;
+  const _MoodBarChart({required this.moodCounts});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(14),
+    const colors = [
+      Color(0xFFE24B4A),
+      Color(0xFFEF9F27),
+      Color(0xFF888780),
+      Color(0xFF1D9E75),
+      Color(0xFF378ADD),
+    ];
+    const emojis = ['😣','😞','😐','😊','😄'];
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: (moodCounts.reduce((a, b) => a > b ? a : b) + 1).toDouble(),
+        barTouchData: BarTouchData(enabled: false),
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: const Color(0xFFF0F0F0), strokeWidth: 1),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: iconColor, size: 18),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: small ? 11 : 16,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1A1A2E),
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(label,
+        borderData: FlBorderData(show: false),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 24,
+              interval: 1,
+              getTitlesWidget: (v, _) => Text(
+                v.toInt().toString(),
                 style: const TextStyle(
-                    fontSize: 9, color: Color(0xFF888780))),
-          ],
+                    fontSize: 10, color: Color(0xFFB4B2A9)),
+              ),
+            ),
+          ),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (v, _) {
+                final i = v.toInt();
+                if (i < 0 || i > 4) return const SizedBox();
+                return Text(emojis[i],
+                    style: const TextStyle(fontSize: 16));
+              },
+            ),
+          ),
         ),
+        barGroups: List.generate(
+          5,
+          (i) => BarChartGroupData(
+            x: i,
+            barRods: [
+              BarChartRodData(
+                toY: moodCounts[i].toDouble(),
+                color: colors[i],
+                width: 28,
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(6)),
+                backDrawRodData: BackgroundBarChartRodData(
+                  show: true,
+                  toY: (moodCounts.reduce((a, b) => a > b ? a : b) + 1).toDouble(),
+                  color: const Color(0xFFF8F9FA),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── AI Summary Card ─────────────────────────────────────────────────────────
+
+class _AiSummaryCard extends StatelessWidget {
+  final Map<String, dynamic> summary;
+  const _AiSummaryCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.auto_awesome, color: Color(0xFF1D9E75), size: 18),
+              SizedBox(width: 8),
+              Text('Summaries Report',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1A1A2E))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            summary['weeklySummary'] as String? ?? '',
+            style: const TextStyle(
+                fontSize: 13, color: Color(0xFF444441), height: 1.7),
+          ),
+          if ((summary['recurringTrigger'] as String?)?.isNotEmpty == true ||
+              (summary['sourceOfNegativity'] as String?)?.isNotEmpty == true) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if ((summary['sourceOfNegativity'] as String?)?.isNotEmpty == true)
+                  Expanded(
+                    child: _InfoChip(
+                      label: 'Source of negativity',
+                      value: summary['sourceOfNegativity'] as String,
+                      color: const Color(0xFFFAECE7),
+                      textColor: const Color(0xFF993C1D),
+                    ),
+                  ),
+                if ((summary['sourceOfNegativity'] as String?)?.isNotEmpty == true &&
+                    (summary['recurringTrigger'] as String?)?.isNotEmpty == true)
+                  const SizedBox(width: 10),
+                if ((summary['recurringTrigger'] as String?)?.isNotEmpty == true)
+                  Expanded(
+                    child: _InfoChip(
+                      label: 'Triggers of bad mood',
+                      value: summary['recurringTrigger'] as String? ?? '—',
+                      color: const Color(0xFFFAEEDA),
+                      textColor: const Color(0xFF633806),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -366,12 +470,9 @@ class _InfoChip extends StatelessWidget {
   final String value;
   final Color color;
   final Color textColor;
-
   const _InfoChip({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.textColor,
+    required this.label, required this.value,
+    required this.color, required this.textColor,
   });
 
   @override
@@ -385,16 +486,52 @@ class _InfoChip extends StatelessWidget {
         children: [
           Text(label,
               style: const TextStyle(
-                  fontSize: 9,
-                  color: Color(0xFF888780),
-                  fontWeight: FontWeight.w500)),
+                  fontSize: 9, color: Color(0xFF888780), fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           Text(value,
               style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: textColor)),
+                  fontSize: 12, fontWeight: FontWeight.w600, color: textColor)),
         ],
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final Color iconColor;
+  const _StatCard({
+    required this.label, required this.value, required this.icon,
+    required this.color, required this.iconColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: color, borderRadius: BorderRadius.circular(14)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: iconColor, size: 18),
+            const SizedBox(height: 8),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A2E)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(fontSize: 9, color: Color(0xFF888780))),
+          ],
+        ),
       ),
     );
   }
@@ -432,34 +569,30 @@ class _EntryTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  entry.entryText,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF1A1A2E),
-                      height: 1.4),
-                ),
+                Text(entry.entryText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF1A1A2E),
+                        height: 1.4)),
                 const SizedBox(height: 4),
-                Text(
-                  _formatDate(entry.createdAt),
-                  style: const TextStyle(
-                      fontSize: 10, color: Color(0xFFB4B2A9)),
-                ),
+                Text(_timeAgo(entry.createdAt),
+                    style: const TextStyle(
+                        fontSize: 10, color: Color(0xFFB4B2A9))),
               ],
             ),
           ),
+          const Icon(Icons.chevron_right, size: 16, color: Color(0xFFB4B2A9)),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime dt) {
-    final months = [
-      'Jan','Feb','Mar','Apr','May','Jun',
-      'Jul','Aug','Sep','Oct','Nov','Dec'
-    ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  String _timeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 }

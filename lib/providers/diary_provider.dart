@@ -11,22 +11,56 @@ class DiaryProvider extends ChangeNotifier {
   Map<String, dynamic>? _weeklySummary;
   bool _isLoadingWeekly = false;
 
+<<<<<<< HEAD
   // 🔥 新加：Firebase Firestore 实例
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+=======
+  // ── Search & Filter state ──────────────────────────────────────────────────
+  String _searchQuery = '';
+  int? _filterMood; // null = all, 0-4 = specific mood
+>>>>>>> 22fe38b3e6301b4a7496c3660e0f2a605c74d6a5
 
   List<DiaryEntry> get entries => _entries;
   bool get isAnalyzing => _isAnalyzing;
   Map<String, dynamic>? get weeklySummary => _weeklySummary;
   bool get isLoadingWeekly => _isLoadingWeekly;
+  String get searchQuery => _searchQuery;
+  int? get filterMood => _filterMood;
 
-  List<DiaryEntry> get thisWeekEntries {
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    return _entries.where((e) => e.createdAt.isAfter(
-      DateTime(weekStart.year, weekStart.month, weekStart.day),
-    )).toList();
+  // ── Filtered entries ───────────────────────────────────────────────────────
+  List<DiaryEntry> get filteredEntries {
+    var result = [..._entries];
+    if (_filterMood != null) {
+      result = result.where((e) => e.mood == _filterMood).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result.where((e) =>
+          e.entryText.toLowerCase().contains(q) ||
+          e.moodLabel.toLowerCase().contains(q) ||
+          (e.triggerKeyword?.toLowerCase().contains(q) ?? false) ||
+          (e.aiReflection?.toLowerCase().contains(q) ?? false)).toList();
+    }
+    return result;
   }
 
+  void setSearch(String query) {
+    _searchQuery = query;
+    notifyListeners();
+  }
+
+  void setFilterMood(int? mood) {
+    _filterMood = mood;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    _searchQuery = '';
+    _filterMood = null;
+    notifyListeners();
+  }
+
+  // ── Computed getters ───────────────────────────────────────────────────────
   List<DiaryEntry> get last7Days {
     final cutoff = DateTime.now().subtract(const Duration(days: 7));
     return _entries
@@ -49,7 +83,8 @@ class DiaryProvider extends ChangeNotifier {
 
   bool get hasRiskFlag {
     if (_entries.length < 3) return false;
-    final sorted = [..._entries]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final sorted = [..._entries]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return sorted.take(3).every((e) => e.mood <= 1);
   }
 
@@ -57,6 +92,7 @@ class DiaryProvider extends ChangeNotifier {
     _loadEntries();
   }
 
+  // ── Persistence ────────────────────────────────────────────────────────────
   Future<void> _loadEntries() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList('diary_entries') ?? [];
@@ -75,6 +111,7 @@ class DiaryProvider extends ChangeNotifier {
     );
   }
 
+  // ── CRUD ───────────────────────────────────────────────────────────────────
   Future<DiaryEntry> addEntry({
     required String entryText,
     required int mood,
@@ -85,7 +122,6 @@ class DiaryProvider extends ChangeNotifier {
       mood: mood,
       createdAt: DateTime.now(),
     );
-
     _entries.insert(0, entry);
     await _saveEntries(); // 保留原有本地存储
     
@@ -97,13 +133,11 @@ class DiaryProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-
-    // Trigger AI analysis in background
     _analyzeEntry(entry);
-
     return entry;
   }
 
+<<<<<<< HEAD
   Future<void> _analyzeEntry(DiaryEntry entry) async {
     _isAnalyzing = true;
     notifyListeners();
@@ -152,7 +186,28 @@ class DiaryProvider extends ChangeNotifier {
     }
 
     _isLoadingWeekly = false;
+=======
+  /// Edit an existing entry (text + mood). Clears old AI data, re-analyzes.
+  Future<DiaryEntry> editEntry({
+    required String id,
+    required String entryText,
+    required int mood,
+  }) async {
+    final idx = _entries.indexWhere((e) => e.id == id);
+    if (idx == -1) throw Exception('Entry not found');
+
+    final updated = DiaryEntry(
+      id: id,
+      entryText: entryText,
+      mood: mood,
+      createdAt: _entries[idx].createdAt, // keep original timestamp
+    );
+    _entries[idx] = updated;
+    await _saveEntries();
+>>>>>>> 22fe38b3e6301b4a7496c3660e0f2a605c74d6a5
     notifyListeners();
+    _analyzeEntry(updated); // re-run AI analysis
+    return updated;
   }
 
   Future<void> deleteEntry(String id) async {
@@ -169,7 +224,43 @@ class DiaryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Returns mood value for a specific date, or null if no entry
+  // ── AI Analysis ────────────────────────────────────────────────────────────
+  Future<void> _analyzeEntry(DiaryEntry entry) async {
+    _isAnalyzing = true;
+    notifyListeners();
+    try {
+      final result = await AiService.analyzeDiaryEntry(
+        entryText: entry.entryText,
+        mood: entry.mood,
+        recentEntries: last7Days.where((e) => e.id != entry.id).toList(),
+      );
+      final updated = entry.copyWith(
+        aiReflection: result['reflectiveSummary'] as String?,
+        triggerKeyword: result['triggerKeyword'] as String?,
+        emotionIntensity: (result['emotionIntensity'] as num?)?.toDouble(),
+      );
+      final idx = _entries.indexWhere((e) => e.id == entry.id);
+      if (idx != -1) {
+        _entries[idx] = updated;
+        await _saveEntries();
+      }
+    } catch (_) {}
+    _isAnalyzing = false;
+    notifyListeners();
+  }
+
+  Future<void> loadWeeklySummary() async {
+    _isLoadingWeekly = true;
+    notifyListeners();
+    try {
+      _weeklySummary = await AiService.generateWeeklySummary(last7Days);
+    } catch (_) {
+      _weeklySummary = null;
+    }
+    _isLoadingWeekly = false;
+    notifyListeners();
+  }
+
   int? getMoodForDate(DateTime date) {
     try {
       final entry = _entries.firstWhere((e) =>
