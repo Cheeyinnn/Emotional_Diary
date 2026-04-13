@@ -29,7 +29,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
     {'emoji': '😞', 'label': 'Bad', 'color': Color(0xFFEF9F27)},
     {'emoji': '😐', 'label': 'Okay', 'color': Color(0xFF888780)},
     {'emoji': '😊', 'label': 'Good', 'color': Color(0xFF1D9E75)},
-    {'emoji': '😄', 'label': 'Great', 'color': Color(0xFF378ADD)},
+    {'emoji': '😄1', 'label': 'Great', 'color': Color(0xFF378ADD)},
   ];
 
   @override
