@@ -11,14 +11,10 @@ class DiaryProvider extends ChangeNotifier {
   Map<String, dynamic>? _weeklySummary;
   bool _isLoadingWeekly = false;
 
-<<<<<<< HEAD
-  // 🔥 新加：Firebase Firestore 实例
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-=======
-  // ── Search & Filter state ──────────────────────────────────────────────────
+  
   String _searchQuery = '';
   int? _filterMood; // null = all, 0-4 = specific mood
->>>>>>> 22fe38b3e6301b4a7496c3660e0f2a605c74d6a5
 
   List<DiaryEntry> get entries => _entries;
   bool get isAnalyzing => _isAnalyzing;
@@ -123,9 +119,8 @@ class DiaryProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     _entries.insert(0, entry);
-    await _saveEntries(); // 保留原有本地存储
+    await _saveEntries(); 
     
-    // 🔥 新加：同步到云端 Firebase
     try {
       await _firestore.collection('diary_entries').doc(entry.id).set(entry.toMap());
     } catch (e) {
@@ -137,57 +132,6 @@ class DiaryProvider extends ChangeNotifier {
     return entry;
   }
 
-<<<<<<< HEAD
-  Future<void> _analyzeEntry(DiaryEntry entry) async {
-    _isAnalyzing = true;
-    notifyListeners();
-
-    try {
-      final result = await AiService.analyzeDiaryEntry(
-        entryText: entry.entryText,
-        mood: entry.mood,
-        recentEntries: last7Days.where((e) => e.id != entry.id).toList(),
-      );
-
-      final updated = entry.copyWith(
-        aiReflection: result['reflectiveSummary'] as String?,
-        triggerKeyword: result['triggerKeyword'] as String?,
-        emotionIntensity: (result['emotionIntensity'] as num?)?.toDouble(),
-      );
-
-      final idx = _entries.indexWhere((e) => e.id == entry.id);
-      if (idx != -1) {
-        _entries[idx] = updated;
-        await _saveEntries(); // 保留原有本地更新
-
-        // 🔥 新加：更新云端 Firebase 里的 AI 结果
-        try {
-          await _firestore.collection('diary_entries').doc(entry.id).update(updated.toMap());
-        } catch (e) {
-          debugPrint("Firebase Update Error: $e");
-        }
-      }
-    } catch (_) {
-      // Silently fail — entry is still saved without AI data
-    }
-
-    _isAnalyzing = false;
-    notifyListeners();
-  }
-
-  Future<void> loadWeeklySummary() async {
-    _isLoadingWeekly = true;
-    notifyListeners();
-
-    try {
-      _weeklySummary = await AiService.generateWeeklySummary(last7Days);
-    } catch (_) {
-      _weeklySummary = null;
-    }
-
-    _isLoadingWeekly = false;
-=======
-  /// Edit an existing entry (text + mood). Clears old AI data, re-analyzes.
   Future<DiaryEntry> editEntry({
     required String id,
     required String entryText,
@@ -200,21 +144,26 @@ class DiaryProvider extends ChangeNotifier {
       id: id,
       entryText: entryText,
       mood: mood,
-      createdAt: _entries[idx].createdAt, // keep original timestamp
+      createdAt: _entries[idx].createdAt, 
     );
     _entries[idx] = updated;
     await _saveEntries();
->>>>>>> 22fe38b3e6301b4a7496c3660e0f2a605c74d6a5
+    
+    try {
+      await _firestore.collection('diary_entries').doc(id).update(updated.toMap());
+    } catch (e) {
+      debugPrint("Firebase Update Error: $e");
+    }
+
     notifyListeners();
-    _analyzeEntry(updated); // re-run AI analysis
+    _analyzeEntry(updated); 
     return updated;
   }
 
   Future<void> deleteEntry(String id) async {
     _entries.removeWhere((e) => e.id == id);
-    await _saveEntries(); // 保留原有本地删除
+    await _saveEntries();
 
-    // 🔥 新加：从云端 Firebase 删除
     try {
       await _firestore.collection('diary_entries').doc(id).delete();
     } catch (e) {
@@ -228,23 +177,33 @@ class DiaryProvider extends ChangeNotifier {
   Future<void> _analyzeEntry(DiaryEntry entry) async {
     _isAnalyzing = true;
     notifyListeners();
+
     try {
       final result = await AiService.analyzeDiaryEntry(
         entryText: entry.entryText,
         mood: entry.mood,
         recentEntries: last7Days.where((e) => e.id != entry.id).toList(),
       );
+
       final updated = entry.copyWith(
         aiReflection: result['reflectiveSummary'] as String?,
         triggerKeyword: result['triggerKeyword'] as String?,
         emotionIntensity: (result['emotionIntensity'] as num?)?.toDouble(),
       );
+
       final idx = _entries.indexWhere((e) => e.id == entry.id);
       if (idx != -1) {
         _entries[idx] = updated;
-        await _saveEntries();
+        await _saveEntries(); 
+
+        try {
+          await _firestore.collection('diary_entries').doc(entry.id).update(updated.toMap());
+        } catch (e) {
+          debugPrint("Firebase Update Error: $e");
+        }
       }
     } catch (_) {}
+
     _isAnalyzing = false;
     notifyListeners();
   }
@@ -252,11 +211,13 @@ class DiaryProvider extends ChangeNotifier {
   Future<void> loadWeeklySummary() async {
     _isLoadingWeekly = true;
     notifyListeners();
+
     try {
       _weeklySummary = await AiService.generateWeeklySummary(last7Days);
     } catch (_) {
       _weeklySummary = null;
     }
+
     _isLoadingWeekly = false;
     notifyListeners();
   }

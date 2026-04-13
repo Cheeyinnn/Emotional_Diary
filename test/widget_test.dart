@@ -13,11 +13,7 @@ import 'package:emotion_diary/main.dart';
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-<<<<<<< HEAD
-    await tester.pumpWidget(const MyApp());
-=======
-    await tester.pumpWidget(const EmotionDiaryApp(showOnboarding: false));
->>>>>>> 22fe38b3e6301b4a7496c3660e0f2a605c74d6a5
+    await tester.pumpWidget(const EmotionDiaryApp());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
