@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart'; // 🔥 Added
+import 'firebase_options.dart'; // 🔥 Added
 import 'providers/diary_provider.dart';
 import 'screens/welcome_screen.dart';
 
-void main() {
+// Change main to 'async' so we can wait for Firebase to start
+void main() async { 
+  // 1. Essential: Initialize Flutter's engine bindings
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. Start Firebase using your generated options
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => DiaryProvider(),
