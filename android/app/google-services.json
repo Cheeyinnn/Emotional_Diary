@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "416637005676",
+    "project_id": "emotionaldiaryapp",
+    "storage_bucket": "emotionaldiaryapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:416637005676:android:88e747e706c4a81267cd49",
+        "android_client_info": {
+          "package_name": "com.example.my_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFm3KbMrcHgkwLft-PtiNAnDc5tJJuPN4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,12 +3,16 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/diary_entry.dart';
 import '../services/ai_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DiaryProvider extends ChangeNotifier {
   List<DiaryEntry> _entries = [];
   bool _isAnalyzing = false;
   Map<String, dynamic>? _weeklySummary;
   bool _isLoadingWeekly = false;
+
+  // 🔥 新加：Firebase Firestore 实例
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   List<DiaryEntry> get entries => _entries;
   bool get isAnalyzing => _isAnalyzing;
@@ -83,7 +87,15 @@ class DiaryProvider extends ChangeNotifier {
     );
 
     _entries.insert(0, entry);
-    await _saveEntries();
+    await _saveEntries(); // 保留原有本地存储
+    
+    // 🔥 新加：同步到云端 Firebase
+    try {
+      await _firestore.collection('diary_entries').doc(entry.id).set(entry.toMap());
+    } catch (e) {
+      debugPrint("Firebase Add Error: $e");
+    }
+
     notifyListeners();
 
     // Trigger AI analysis in background
@@ -112,7 +124,14 @@ class DiaryProvider extends ChangeNotifier {
       final idx = _entries.indexWhere((e) => e.id == entry.id);
       if (idx != -1) {
         _entries[idx] = updated;
-        await _saveEntries();
+        await _saveEntries(); // 保留原有本地更新
+
+        // 🔥 新加：更新云端 Firebase 里的 AI 结果
+        try {
+          await _firestore.collection('diary_entries').doc(entry.id).update(updated.toMap());
+        } catch (e) {
+          debugPrint("Firebase Update Error: $e");
+        }
       }
     } catch (_) {
       // Silently fail — entry is still saved without AI data
@@ -138,7 +157,15 @@ class DiaryProvider extends ChangeNotifier {
 
   Future<void> deleteEntry(String id) async {
     _entries.removeWhere((e) => e.id == id);
-    await _saveEntries();
+    await _saveEntries(); // 保留原有本地删除
+
+    // 🔥 新加：从云端 Firebase 删除
+    try {
+      await _firestore.collection('diary_entries').doc(id).delete();
+    } catch (e) {
+      debugPrint("Firebase Delete Error: $e");
+    }
+
     notifyListeners();
   }
 
