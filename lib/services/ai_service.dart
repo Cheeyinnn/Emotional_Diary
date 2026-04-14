@@ -4,11 +4,11 @@ import '../models/diary_entry.dart';
 
 class AiService {
 
-  static const String _apiKey = 'AIzaSyDfkTy9gfhX6F8iWKcA1Pq-oB4irKyPwCQ';
+  static const String _apiKey = 'AIzaSyAABt4UE3-tQss2XpZKINmkpNWbZPdemYs';
 
   // Gemini endpoint
   static const String _apiUrl =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
   /// ✅ Analyze single diary entry
   static Future<Map<String, dynamic>> analyzeDiaryEntry({

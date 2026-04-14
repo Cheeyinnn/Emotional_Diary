@@ -299,6 +299,8 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        
         _bubble(
           accent: const Color(0xFFE8F7F2),
           child: Column(
