@@ -299,6 +299,26 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
             ],
           ),
         ),
+        _bubble(
+          accent: const Color(0xFFE8F7F2),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Reflection',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1D9E75))),
+              const SizedBox(height: 6),
+              Text(ai['reflectiveSummary'] ?? '',
+                  style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.6,
+                      color: Color(0xFF1A1A2E))),
+            ],
+          ),
+        ),
+
 
         const SizedBox(height: 24),
 

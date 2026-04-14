@@ -3,12 +3,14 @@ import 'package:http/http.dart' as http;
 import '../models/diary_entry.dart';
 
 class AiService {
-  // Replace with your actual API key and endpoint
-  // For production: use Claude API (Anthropic) or OpenAI
-  static const String _apiKey = 'YOUR_API_KEY_HERE';
-  static const String _apiUrl = 'https://api.openai.com/v1/chat/completions';
 
-  /// Analyzes a single diary entry and returns AI reflection + emotion data
+  static const String _apiKey = 'AIzaSyDfkTy9gfhX6F8iWKcA1Pq-oB4irKyPwCQ';
+
+  // Gemini endpoint
+  static const String _apiUrl =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+  /// ✅ Analyze single diary entry
   static Future<Map<String, dynamic>> analyzeDiaryEntry({
     required String entryText,
     required int mood,
@@ -17,7 +19,6 @@ class AiService {
     final moodLabels = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
     final currentMoodLabel = moodLabels[mood.clamp(0, 4)];
 
-    // Build context from recent entries (last 7 days)
     final historyContext = recentEntries.take(7).map((e) {
       return '- ${e.createdAt.day}/${e.createdAt.month}: Mood=${e.moodLabel}, Entry="${e.entryText.substring(0, e.entryText.length.clamp(0, 80))}..."';
     }).join('\n');
@@ -29,69 +30,76 @@ Current Entry:
 - Mood: $currentMoodLabel
 - Text: "$entryText"
 
-Recent History (last 7 days):
+Recent History:
 ${historyContext.isEmpty ? 'No previous entries.' : historyContext}
 
-Respond with this exact JSON structure:
+Return JSON:
 {
-  "emotionIntensity": <float 0.0-10.0>,
-  "triggerKeyword": "<1-3 word trigger e.g. work stress, family, sleep>",
-  "validation": "<1-2 warm sentences acknowledging feelings>",
-  "patternInsight": "<1 sentence about a pattern noticed from history, or empty string if no history>",
-  "activitySuggestion": "<one specific activity e.g. Box Breathing, Mindful Walk, Journaling Prompt>",
-  "activityDuration": "<e.g. 5 min, 10 min>",
-  "reflectiveSummary": "<2-3 sentence supportive summary>"
+  "emotionIntensity": 0.0,
+  "triggerKeyword": "",
+  "validation": "",
+  "patternInsight": "",
+  "activitySuggestion": "",
+  "activityDuration": "",
+  "reflectiveSummary": ""
 }
 ''';
 
     try {
       final response = await http.post(
-        Uri.parse(_apiUrl),
+        Uri.parse("$_apiUrl?key=$_apiKey"),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
         },
         body: jsonEncode({
-          'model': 'gpt-4o-mini',
-          'messages': [
-            {'role': 'user', 'content': prompt}
-          ],
-          'temperature': 0.7,
-          'max_tokens': 500,
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt}
+              ]
+            }
+          ]
         }),
       );
 
+        print("STATUS: ${response.statusCode}");
+        print("BODY: ${response.body}");
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final content = data['choices'][0]['message']['content'] as String;
-        // Strip markdown code fences if present
-        final cleaned = content
+
+        final text = data['candidates'][0]['content']['parts'][0]['text'];
+
+        final cleaned = text
             .replaceAll('```json', '')
             .replaceAll('```', '')
             .trim();
-        return jsonDecode(cleaned) as Map<String, dynamic>;
+
+        return jsonDecode(cleaned);
       } else {
+        print("ERROR BODY: ${response.body}");
+
+        if (response.statusCode == 429) {
+          return {
+            ..._fallbackResponse(mood),
+            'isFallback': true,
+            'error': 'quota_exceeded',
+          };
+        }
+
         return _fallbackResponse(mood);
       }
     } catch (e) {
+      print("ERROR: $e");
       return _fallbackResponse(mood);
     }
   }
 
-  /// Generates weekly AI insight summary
+  /// ✅ Weekly summary
   static Future<Map<String, dynamic>> generateWeeklySummary(
       List<DiaryEntry> entries) async {
     if (entries.isEmpty) {
-      return {
-        'dominantEmotion': 'No data',
-        'avgMoodScore': 0,
-        'recurringTrigger': 'None',
-        'weeklySummary':
-            'Start journaling to get your weekly AI insight summary!',
-        'positiveStreak': 0,
-        'negativeStreak': 0,
-        'riskFlag': false,
-      };
+      return _fallbackWeeklySummary(entries);
     }
 
     final entriesText = entries.map((e) {
@@ -99,50 +107,52 @@ Respond with this exact JSON structure:
     }).join('\n');
 
     final prompt = '''
-You are a compassionate emotional wellness coach. Analyze these diary entries from the past week and respond ONLY with valid JSON.
+You are a compassionate emotional wellness coach. Analyze these diary entries and respond ONLY in JSON.
 
-Diary Entries:
 $entriesText
 
-Respond with this exact JSON structure:
+Return JSON:
 {
-  "dominantEmotion": "<most common emotion e.g. Anxious, Content, Stressed>",
-  "avgMoodScore": <float 0.0-4.0>,
-  "recurringTrigger": "<main trigger e.g. work deadlines, social interactions>",
-  "sourceOfNegativity": "<brief phrase or empty string>",
-  "weeklySummary": "<3-4 warm, supportive sentences summarizing the week and growth>",
-  "positiveStreak": <int, consecutive good/great days>,
-  "negativeStreak": <int, consecutive awful/bad days>,
-  "riskFlag": <true if 3+ consecutive low mood days>,
-  "riskMessage": "<if riskFlag true: gentle supportive message, else empty string>"
+  "dominantEmotion": "",
+  "avgMoodScore": 0.0,
+  "recurringTrigger": "",
+  "sourceOfNegativity": "",
+  "weeklySummary": "",
+  "positiveStreak": 0,
+  "negativeStreak": 0,
+  "riskFlag": false,
+  "riskMessage": ""
 }
 ''';
 
     try {
       final response = await http.post(
-        Uri.parse(_apiUrl),
+        Uri.parse("$_apiUrl?key=$_apiKey"),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_apiKey',
         },
         body: jsonEncode({
-          'model': 'gpt-4o-mini',
-          'messages': [
-            {'role': 'user', 'content': prompt}
-          ],
-          'temperature': 0.7,
-          'max_tokens': 600,
+          "contents": [
+            {
+              "parts": [
+                {"text": prompt}
+              ]
+            }
+          ]
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final content = data['choices'][0]['message']['content'] as String;
-        final cleaned = content
+
+        final text = data['candidates'][0]['content']['parts'][0]['text'];
+
+        final cleaned = text
             .replaceAll('```json', '')
             .replaceAll('```', '')
             .trim();
-        return jsonDecode(cleaned) as Map<String, dynamic>;
+
+        return jsonDecode(cleaned);
       } else {
         return _fallbackWeeklySummary(entries);
       }
@@ -150,8 +160,6 @@ Respond with this exact JSON structure:
       return _fallbackWeeklySummary(entries);
     }
   }
-
-  // ── Fallback responses when API is unavailable ──────────────────────────────
 
   static Map<String, dynamic> _fallbackResponse(int mood) {
     final responses = [
@@ -204,7 +212,7 @@ Respond with this exact JSON structure:
         'activitySuggestion': 'Creative Expression',
         'activityDuration': '20 min',
         'reflectiveSummary':
-            'Great days like this remind us what we are working toward. Hold onto this feeling.',
+            'Great days like this remind us what we are working toward.',
       },
     ];
     return responses[mood.clamp(0, 4)];
@@ -214,17 +222,20 @@ Respond with this exact JSON structure:
     final avg = entries.isEmpty
         ? 2.0
         : entries.map((e) => e.mood).reduce((a, b) => a + b) / entries.length;
+
     return {
       'dominantEmotion': avg >= 3 ? 'Content' : avg >= 2 ? 'Neutral' : 'Stressed',
       'avgMoodScore': avg,
       'recurringTrigger': 'daily routine',
       'sourceOfNegativity': '',
       'weeklySummary':
-          'You have been consistently showing up and reflecting on your emotions this week. That self-awareness is a powerful tool for growth.',
+          'You have been consistently showing up and reflecting on your emotions this week.',
       'positiveStreak': 0,
       'negativeStreak': 0,
       'riskFlag': false,
       'riskMessage': '',
     };
   }
+
+
 }
