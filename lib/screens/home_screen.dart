@@ -7,19 +7,20 @@ import 'log_mood_screen.dart';
 import 'insight_screen.dart';
 import 'calendar_screen.dart';
 import 'profile_screen.dart';
-import 'breathing_screen.dart';
+import '../activity/breathing_screen.dart';
 import 'mood_detail_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final int initialTab;
+  const HomeScreen({super.key, this.initialTab = 0});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   final List<Widget> _screens = const [
     _HomeTab(),
@@ -27,6 +28,13 @@ class _HomeScreenState extends State<HomeScreen> {
     InsightScreen(),
     ProfileScreen(),
   ];
+
+  @override
+    void initState() {
+      super.initState();
+      _selectedIndex = widget.initialTab;
+    }
+
 
   @override
   Widget build(BuildContext context) {

@@ -92,11 +92,13 @@ class _LogMoodScreenState extends State<LogMoodScreen>
         Navigator.of(context).pop(entry); // Return updated entry to caller
       } else {
         // ── Create mode ──
-        entry = await provider.addEntry(entryText: text, mood: _selectedMood);
+        final data = await provider.addEntry(entryText: text, mood: _selectedMood);
+        final entry = data['entry'] as DiaryEntry;
+        final aiResult = data['aiResult'] as Map<String, dynamic>;
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          _fadeRoute(AiRespondScreen(entry: entry)),
-        );
+        Navigator.pushReplacement(context, MaterialPageRoute(
+          builder: (_) => AiRespondScreen(entry: entry, aiData: aiResult),
+        ));
       }
     } catch (e) {
       if (!mounted) return;

@@ -41,6 +41,7 @@ Return JSON:
   "patternInsight": "",
   "activitySuggestion": "",
   "activityDuration": "",
+  "activitySteps": "1. Step one\n2. Step two\n3. Step three", 
   "reflectiveSummary": ""
 }
 ''';
@@ -81,17 +82,17 @@ Return JSON:
 
         if (response.statusCode == 429) {
           return {
-            ..._fallbackResponse(mood),
+            ...fallbackResponse(mood),
             'isFallback': true,
             'error': 'quota_exceeded',
           };
         }
 
-        return _fallbackResponse(mood);
+        return fallbackResponse(mood);
       }
     } catch (e) {
       print("ERROR: $e");
-      return _fallbackResponse(mood);
+      return fallbackResponse(mood);
     }
   }
 
@@ -161,7 +162,7 @@ Return JSON:
     }
   }
 
-  static Map<String, dynamic> _fallbackResponse(int mood) {
+  static Map<String, dynamic> fallbackResponse(int mood) {
     final responses = [
       {
         'emotionIntensity': 8.5,
@@ -171,6 +172,7 @@ Return JSON:
         'patternInsight': 'Your mood has been lower this week — be gentle with yourself.',
         'activitySuggestion': 'Box Breathing',
         'activityDuration': '5 min',
+        'activitySteps': '1. Find a quiet space.\n2. Close your eyes and breathe deeply.\n3. Focus on the present moment for a few minutes.',
         'reflectiveSummary':
             'You showed up today even when things felt heavy. That takes courage.',
       },

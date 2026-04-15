@@ -1,53 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/diary_entry.dart';
-import '../providers/diary_provider.dart';
-import '../services/ai_service.dart';
 import '../utils/transitions.dart';
+import '../utils/activityRouter.dart';
+import '../providers/diary_provider.dart';
 import 'home_screen.dart';
 
-class AiRespondScreen extends StatefulWidget {
+class AiRespondScreen extends StatelessWidget {
   final DiaryEntry entry;
-  const AiRespondScreen({super.key, required this.entry});
+  final Map<String, dynamic> aiData;
 
-  @override
-  State<AiRespondScreen> createState() => _AiRespondScreenState();
-}
-
-class _AiRespondScreenState extends State<AiRespondScreen> {
-  Map<String, dynamic>? _aiData;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAiResponse();
-  }
-
-  Future<void> _loadAiResponse() async {
-    final provider = context.read<DiaryProvider>();
-    final recent = provider.last7Days
-        .where((e) => e.id != widget.entry.id)
-        .toList();
-
-    final result = await AiService.analyzeDiaryEntry(
-      entryText: widget.entry.entryText,
-      mood: widget.entry.mood,
-      recentEntries: recent,
-    );
-
-    if (mounted) {
-      setState(() {
-        _aiData = result;
-        _loading = false;
-      });
-    }
-  }
+  const AiRespondScreen({
+    super.key,
+    required this.entry,
+    required this.aiData,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final entry = widget.entry;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -55,7 +25,7 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-          fadeScaleRoute(const HomeScreen()),
+            fadeScaleRoute(const HomeScreen()),
             (r) => false,
           ),
         ),
@@ -66,31 +36,14 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: _loading
-            ? _buildLoading()
-            : _buildContent(entry),
-      ),
+      body: SafeArea(child: _buildContent(context)),
     );
   }
 
-  Widget _buildLoading() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: Color(0xFF1D9E75)),
-          SizedBox(height: 20),
-          Text('Analyzing your entry...',
-              style: TextStyle(color: Color(0xFF888780), fontSize: 14)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContent(DiaryEntry entry) {
-    final ai = _aiData!;
+  Widget _buildContent(BuildContext context) {
+    final ai = aiData;
     final intensity = (ai['emotionIntensity'] as num?)?.toDouble() ?? 5.0;
+    final duration = ai['activityDuration'] as String?;
 
     return ListView(
       padding: const EdgeInsets.all(24),
@@ -255,7 +208,8 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(6),
@@ -272,35 +226,47 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      ai['activitySuggestion'] as String? ??
-                          'Box Breathing',
+                      ai['activitySuggestion'] as String? ?? 'Box Breathing',
                       style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: Colors.white),
                     ),
                   ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
+                  GestureDetector(
+                    onTap: () => ActivityRouter.navigate(
+                      context,
+                      ai['activitySuggestion'] as String? ?? 'Box Breathing',
+                      duration: ai['activityDuration'] as String?,
+                      steps: ai['activitySteps'] as String?,  // 新增
+
                     ),
-                    child: const Icon(Icons.play_arrow,
-                        color: Colors.white, size: 24),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow,
+                          color: Colors.white, size: 24),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(ai['activityDuration'] as String? ?? '5 min',
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.white.withOpacity(0.8))),
+              if (duration != null && duration.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(duration,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withOpacity(0.8))),
+              ],
             ],
           ),
         ),
         const SizedBox(height: 12),
-        
+
+        // Reflection
         _bubble(
           accent: const Color(0xFFE8F7F2),
           child: Column(
@@ -312,22 +278,68 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF1D9E75))),
               const SizedBox(height: 6),
-              Text(ai['reflectiveSummary'] ?? '',
+              Text(ai['reflectiveSummary'] as String? ?? '',
                   style: const TextStyle(
-                      fontSize: 14,
-                      height: 1.6,
-                      color: Color(0xFF1A1A2E))),
+                      fontSize: 14, height: 1.6, color: Color(0xFF1A1A2E))),
             ],
           ),
         ),
 
-
         const SizedBox(height: 24),
+
+        // 在 Skip for Now 按钮上面加
+          Consumer<DiaryProvider>(
+            builder: (context, provider, _) {
+              if (!provider.shouldShowWeeklySummary) return const SizedBox();
+              return GestureDetector(
+                onTap: () => Navigator.of(context).pushAndRemoveUntil(
+                  fadeScaleRoute(const HomeScreen(initialTab: 2)), // 直接去 Insights tab
+                  (r) => false,
+                ),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEEDFE),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFAFA9EC)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.insights, color: Color(0xFF534AB7), size: 20),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Your Weekly Insights are ready!',
+                                style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF3C3489))),
+                            SizedBox(height: 2),
+                            Text('See your mood patterns & AI summary',
+                                style: TextStyle(
+                                    fontSize: 11, color: Color(0xFF534AB7))),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right,
+                          color: Color(0xFF534AB7), size: 16),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
+        
+
 
         // Skip button
         TextButton(
           onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-          fadeScaleRoute(const HomeScreen()),
+            fadeScaleRoute(const HomeScreen()),
             (r) => false,
           ),
           child: const Text('Skip for Now',
@@ -336,6 +348,8 @@ class _AiRespondScreenState extends State<AiRespondScreen> {
                   color: Color(0xFF888780),
                   fontWeight: FontWeight.w500)),
         ),
+
+        
       ],
     );
   }
