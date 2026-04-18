@@ -10,6 +10,8 @@ import 'profile_screen.dart';
 import '../activity/breathing_screen.dart';
 import 'mood_detail_screen.dart';
 import 'search_screen.dart';
+import '../utils/activityRouter.dart';
+import 'wellness_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialTab;
@@ -28,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     InsightScreen(),
     ProfileScreen(),
   ];
+  
 
   @override
     void initState() {
@@ -91,6 +94,13 @@ class _HomeTab extends StatelessWidget {
     final last7 = provider.last7Days;
     final hasRisk = provider.hasRiskFlag;
     final isAnalyzing = provider.isAnalyzing;
+
+    final suggestions = last7
+    .where((e) => e.activitySuggestion != null)
+    .map((e) => e.activitySuggestion!)
+    .toSet()
+    .take(2)
+    .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -349,11 +359,12 @@ class _HomeTab extends StatelessWidget {
                     Row(
                       children: [
                         _ActionCard(
-                          icon: Icons.self_improvement,
-                          label: 'Meditate',
+                          icon: Icons.spa,
+                          label: 'Wellness',
                           color: const Color(0xFFE1F5EE),
                           iconColor: const Color(0xFF1D9E75),
-                          onTap: () => Navigator.of(context).push(slideUpRoute(const BreathingScreen())),
+                          onTap: () => Navigator.of(context).push(
+                            slideRightRoute(const WellnessScreen())),
                         ),
                         const SizedBox(width: 12),
                         _ActionCard(
@@ -409,23 +420,28 @@ class _HomeTab extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _SuggestionCard(
-                      icon: Icons.air,
-                      title: 'Box Breathing',
-                      subtitle: 'Reduce stress instantly',
-                      duration: '5 MIN',
-                      color: const Color(0xFFE1F5EE),
-                      onTap: () => Navigator.of(context).push(slideUpRoute(const BreathingScreen())),
-                    ),
-                    const SizedBox(height: 10),
-                    _SuggestionCard(
-                      icon: Icons.directions_walk,
-                      title: 'Mindful Walk',
-                      subtitle: 'Reconnect with surroundings',
-                      duration: '15 MIN',
-                      color: const Color(0xFFEAF3DE),
-                      onTap: () {},
-                    ),
+                    if (suggestions.isEmpty)
+                      _SuggestionCard(
+                        icon: Icons.air,
+                        title: 'Box Breathing',
+                        subtitle: 'Reduce stress instantly',
+                        duration: '5 MIN',
+                        color: const Color(0xFFE1F5EE),
+                        onTap: () => Navigator.of(context).push(
+                          slideUpRoute(const BreathingScreen())),
+                      )
+                    else
+                      ...suggestions.map((activity) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _SuggestionCard(
+                          icon: _activityIcon(activity),
+                          title: activity,
+                          subtitle: _activitySubtitle(activity),
+                          duration: _activityDuration(activity),
+                          color: const Color(0xFFE1F5EE),
+                          onTap: () => ActivityRouter.navigate(context, activity),
+                        ),
+                      )),
                   ],
                 ),
               ),
@@ -494,8 +510,44 @@ class _HomeTab extends StatelessWidget {
     return 'Good evening 🌙';
   }
 
-  String _userName(BuildContext context) => 'Xiao Xuan';
+  // change
+  String _userName(BuildContext context) => 'USERNAME!!!';
 }
+
+IconData _activityIcon(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('breath')) return Icons.air;
+  if (n.contains('walk')) return Icons.directions_walk;
+  if (n.contains('meditat')) return Icons.self_improvement;
+  if (n.contains('gratitude') || n.contains('journal')) return Icons.edit_note;
+  if (n.contains('creative')) return Icons.brush_outlined;
+  if (n.contains('sleep')) return Icons.bedtime_outlined;
+  if (n.contains('stretch')) return Icons.accessibility_new;
+  return Icons.spa;
+}
+
+String _activitySubtitle(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('breath')) return 'Reduce stress instantly';
+  if (n.contains('walk')) return 'Reconnect with surroundings';
+  if (n.contains('meditat')) return 'Calm your mind';
+  if (n.contains('gratitude') || n.contains('journal')) return 'Shift your perspective';
+  if (n.contains('creative')) return 'Express your feelings';
+  if (n.contains('sleep')) return 'Wind down for better rest';
+  if (n.contains('stretch')) return 'Release tension in your body';
+  return 'Take a mindful moment';
+}
+
+String _activityDuration(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('breath')) return '5 MIN';
+  if (n.contains('walk')) return '15 MIN';
+  if (n.contains('meditat')) return '10 MIN';
+  if (n.contains('sleep')) return '8 MIN';
+  if (n.contains('stretch')) return '7 MIN';
+  return '10 MIN';
+}
+
 
 // ─── Mood Week Row ─────────────────────────────────────────────────────────
 

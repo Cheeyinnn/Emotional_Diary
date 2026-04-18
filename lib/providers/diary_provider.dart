@@ -92,7 +92,8 @@ class DiaryProvider extends ChangeNotifier {
     if (_entries.length < 3) return false;
     final sorted = [..._entries]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return sorted.take(3).every((e) => e.mood <= 1);
+    return sorted.take(3).every((e) => e.mood <= 1) ||
+          sorted.take(5).where((e) => e.mood <= 1).length >= 4;
   }
 
   DiaryProvider() {
@@ -146,7 +147,7 @@ class DiaryProvider extends ChangeNotifier {
     return {'entry': entry, 'aiResult': aiResult};
   }
 
-  Future<DiaryEntry> editEntry({
+  Future<Map<String, dynamic>> editEntry({
     required String id,
     required String entryText,
     required int mood,
@@ -170,8 +171,8 @@ class DiaryProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-    _analyzeAndUpdate(updated); 
-    return updated;
+    final aiResult = await _analyzeAndUpdate(updated);
+    return {'entry': updated, 'aiResult': aiResult}; 
   }
 
   Future<void> deleteEntry(String id) async {
@@ -205,6 +206,7 @@ class DiaryProvider extends ChangeNotifier {
       aiReflection: result['reflectiveSummary'] as String?,
       triggerKeyword: result['triggerKeyword'] as String?,
       emotionIntensity: (result['emotionIntensity'] as num?)?.toDouble(),
+      activitySuggestion: result['activitySuggestion'] as String?, 
     );
 
     final idx = _entries.indexWhere((e) => e.id == entry.id);

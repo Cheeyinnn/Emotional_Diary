@@ -73,14 +73,16 @@ class _LogMoodScreenState extends State<LogMoodScreen>
         : _textCtrl.text.trim();
 
     try {
-      DiaryEntry entry;
       if (widget.isEditing) {
         // ── Edit mode ──
-        entry = await provider.editEntry(
+        final result = await provider.editEntry(
           id: widget.existingEntry!.id,
           entryText: text,
           mood: _selectedMood,
         );
+        final entry = result['entry'] as DiaryEntry;
+        final aiResult = result['aiResult'] as Map<String, dynamic>;
+        
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

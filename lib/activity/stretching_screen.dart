@@ -3,54 +3,33 @@ import 'dart:async';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
 
-
-class GenericActivityScreen extends StatefulWidget {
-  final String name;
-  final String duration;
-  final String steps;
-
-  const GenericActivityScreen({
-    super.key,
-    required this.name,
-    required this.duration,
-    required this.steps,
-  });
+class StretchingScreen extends StatefulWidget {
+  const StretchingScreen({super.key});
 
   @override
-  State<GenericActivityScreen> createState() => _GenericActivityScreenState();
+  State<StretchingScreen> createState() => _StretchingScreenState();
 }
 
-class _GenericActivityScreenState extends State<GenericActivityScreen> {
-  late int _totalSeconds;
-  late int _remainingSeconds;
+class _StretchingScreenState extends State<StretchingScreen> {
+  static const int _totalSeconds = 7 * 60; // 7 min
+  int _remainingSeconds = _totalSeconds;
   Timer? _timer;
   bool _isRunning = false;
   bool _isCompleted = false;
   int _currentStep = 0;
 
-  List<String> get _steps => widget.steps
-      .split('\n')
-      .map((s) => s.replaceAll(RegExp(r'^\d+\.\s*'), '').trim())
-      .where((s) => s.isNotEmpty)
-      .toList();
-
-  @override
-  void initState() {
-    super.initState();
-    _totalSeconds = _parseDuration(widget.duration);
-    _remainingSeconds = _totalSeconds;
-  }
+  final List<String> _steps = [
+    'Stand up straight, roll your shoulders back 5 times slowly.',
+    'Tilt your head to the right, hold 10 seconds, then switch sides.',
+    'Reach both arms overhead, interlace fingers, and stretch upward.',
+    'Gently twist your torso left and right, 5 reps each side.',
+    'Shake out your hands and take one deep, releasing breath.',
+  ];
 
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
-  }
-
-  int _parseDuration(String duration) {
-    final match = RegExp(r'(\d+)').firstMatch(duration);
-    final minutes = int.tryParse(match?.group(1) ?? '10') ?? 10;
-    return minutes * 60;
   }
 
   void _toggleTimer() {
@@ -69,13 +48,9 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
         } else {
           setState(() {
             _remainingSeconds--;
-            // Auto-advance steps based on time
             final progress = 1 - (_remainingSeconds / _totalSeconds);
-            final steps = _steps;
-            if (steps.isNotEmpty) {
-              _currentStep =
-                  (progress * steps.length).floor().clamp(0, steps.length - 1);
-            }
+            _currentStep =
+                (progress * _steps.length).floor().clamp(0, _steps.length - 1);
           });
         }
       });
@@ -88,17 +63,16 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  double get _progress =>
-      _totalSeconds == 0 ? 0 : 1 - (_remainingSeconds / _totalSeconds);
+  double get _progress => 1 - (_remainingSeconds / _totalSeconds);
 
   @override
   Widget build(BuildContext context) {
-    final steps = _steps;
+    const color = Color(0xFFEF9F27);
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1D9E75),
+        backgroundColor: color,
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -115,17 +89,17 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
       ),
       body: Column(
         children: [
-          // Green header
+          // Orange header
           Container(
-            color: const Color(0xFF1D9E75),
+            color: color,
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
             width: double.infinity,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.name,
-                  style: const TextStyle(
+                const Text(
+                  'Body Stretching',
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -133,7 +107,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.duration,
+                  '7 min · Release tension in your body',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.white.withOpacity(0.75),
@@ -147,27 +121,71 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
+                // Icon
+                Center(
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: color.withOpacity(0.1),
+                      border: Border.all(
+                        color: color.withOpacity(0.3),
+                        width: 2,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.accessibility_new,
+                      size: 44,
+                      color: color,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Tip banner
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.tips_and_updates_outlined,
+                          color: color, size: 18),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Physical tension often mirrors emotional stress — releasing one helps the other.',
+                          style: TextStyle(
+                              fontSize: 12, color: color, height: 1.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // Timer card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1D9E75).withOpacity(0.07),
+                    color: color.withOpacity(0.07),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     children: [
-                      // Time display
                       Text(
                         _timeDisplay,
                         style: const TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1D9E75),
+                          color: color,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Progress bar
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
@@ -175,22 +193,19 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                             value: _progress,
                             minHeight: 6,
                             backgroundColor: const Color(0xFFE0E0E0),
-                            valueColor: const AlwaysStoppedAnimation(
-                                Color(0xFF1D9E75)),
+                            valueColor:
+                                const AlwaysStoppedAnimation(color),
                           ),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Play/Pause button
                       GestureDetector(
                         onTap: _isCompleted ? null : _toggleTimer,
                         child: Container(
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: _isCompleted
-                                ? Colors.grey
-                                : const Color(0xFF1D9E75),
+                            color: _isCompleted ? Colors.grey : color,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -206,7 +221,6 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
 
                 const SizedBox(height: 24),
 
-                // Steps
                 const Text(
                   'STEPS',
                   style: TextStyle(
@@ -218,7 +232,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                ...List.generate(steps.length, (i) {
+                ...List.generate(_steps.length, (i) {
                   final isDone = i < _currentStep;
                   final isCurrent = i == _currentStep;
                   return Padding(
@@ -226,18 +240,15 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Step number circle
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isDone
-                                ? const Color(0xFF1D9E75)
-                                : isCurrent
-                                    ? const Color(0xFF1D9E75)
-                                    : const Color(0xFFE8E8E8),
+                            color: isDone || isCurrent
+                                ? color
+                                : const Color(0xFFE8E8E8),
                           ),
                           child: Center(
                             child: isDone
@@ -266,7 +277,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                                   ? const Color(0xFF1A1A2E)
                                   : const Color(0xFFB4B2A9),
                             ),
-                            child: Text(steps[i]),
+                            child: Text(_steps[i]),
                           ),
                         ),
                       ],
@@ -276,7 +287,6 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
 
                 const SizedBox(height: 24),
 
-                // Complete button
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -286,9 +296,8 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                       (r) => false,
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isCompleted
-                          ? const Color(0xFF1D9E75)
-                          : const Color(0xFF1D9E75).withOpacity(0.4),
+                      backgroundColor:
+                          _isCompleted ? color : color.withOpacity(0.4),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(27)),

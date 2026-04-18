@@ -8,6 +8,7 @@ class DiaryEntry {
   final String? aiReflection;
   final String? triggerKeyword;
   final double? emotionIntensity;
+  final String? activitySuggestion;
 
   DiaryEntry({
     required this.id,
@@ -17,6 +18,7 @@ class DiaryEntry {
     this.aiReflection,
     this.triggerKeyword,
     this.emotionIntensity,
+    this.activitySuggestion,
   });
 
   String get moodLabel {
@@ -44,6 +46,7 @@ class DiaryEntry {
     String? aiReflection,
     String? triggerKeyword,
     double? emotionIntensity,
+    String? activitySuggestion,
   }) {
     return DiaryEntry(
       id: id,
@@ -53,6 +56,7 @@ class DiaryEntry {
       aiReflection: aiReflection ?? this.aiReflection,
       triggerKeyword: triggerKeyword ?? this.triggerKeyword,
       emotionIntensity: emotionIntensity ?? this.emotionIntensity,
+      activitySuggestion: activitySuggestion ?? this.activitySuggestion,
     );
   }
 
@@ -65,6 +69,7 @@ class DiaryEntry {
       'aiReflection': aiReflection,
       'triggerKeyword': triggerKeyword,
       'emotionIntensity': emotionIntensity,
+      'activitySuggestion': activitySuggestion,
     };
   }
 
@@ -79,6 +84,7 @@ class DiaryEntry {
       emotionIntensity: map['emotionIntensity'] != null
           ? (map['emotionIntensity'] as num).toDouble()
           : null,
+      activitySuggestion: map['activitySuggestion'],
     );
   }
 }

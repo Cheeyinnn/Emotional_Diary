@@ -3,7 +3,10 @@ import '../activity/breathing_screen.dart';
 import '../activity/mindfulWalk_screen.dart';
 import '../activity/gratitudeJournaling_screen.dart';
 import '../activity/creativeExpression_screen.dart';
-import '../activity/genericActivity_screen.dart'; 
+import '../activity/genericActivity_screen.dart';
+import '../activity/meditation_screen.dart';
+import '../activity/sleepHygiene_screen.dart';
+import '../activity/stretching_screen.dart';
 
 class ActivityRouter {
   static Widget screenFor(
@@ -21,7 +24,16 @@ class ActivityRouter {
       return const GratitudeJournalingScreen();
     } else if (name.contains('creative') || name.contains('express')) {
       return const CreativeExpressionScreen();
+    } else if (name.contains('meditat')) {
+      return const MeditationScreen();
+    } else if (name.contains('sleep') || name.contains('rest')) {
+      return const SleepHygieneScreen();
+    } else if (name.contains('stretch') || name.contains('body')) {
+      return const StretchingScreen();
+    } else if (name.contains('sleep') || name.contains('rest')) {
+      return const SleepHygieneScreen();
     }
+    
 
     // 通用页面 fallback
     return GenericActivityScreen(

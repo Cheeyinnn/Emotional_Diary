@@ -24,16 +24,30 @@ class AiService {
     }).join('\n');
 
     final prompt = '''
-You are a compassionate emotional wellness assistant. Analyze this diary entry and recent history, then respond ONLY with valid JSON.
+You are a compassionate emotional wellness assistant. Think step by step before responding.
 
 Current Entry:
+- Date: ${DateTime.now().weekday == 1 ? "Monday" : DateTime.now().weekday == 2 ? "Tuesday" : DateTime.now().weekday == 3 ? "Wednesday" : DateTime.now().weekday == 4 ? "Thursday" : DateTime.now().weekday == 5 ? "Friday" : DateTime.now().weekday == 6 ? "Saturday" : "Sunday"}
 - Mood: $currentMoodLabel
 - Text: "$entryText"
 
-Recent History:
+Recent History (chronological):
 ${historyContext.isEmpty ? 'No previous entries.' : historyContext}
 
-Return JSON:
+ANALYSIS INSTRUCTIONS:
+1. emotionIntensity: Rate 1-10. Consider BOTH the words used AND the mood level. "Fine" at Bad mood = higher intensity than face value.
+2. triggerKeyword: Extract the SPECIFIC root cause (e.g. "exam pressure" not just "stress"). One phrase only.
+3. validation: 2 sentences. Acknowledge their exact feeling first, then normalize it. Never say "I understand".
+4. patternInsight: ONLY fill this if recent history exists AND you see a real pattern. Be specific with timing if possible (e.g. "Your mood tends to drop mid-week"). Leave empty string if no clear pattern.
+5. activitySuggestion: MUST be exactly one of these options based on mood level:
+   - Awful/Bad → "Box Breathing" or "Guided Meditation" or "Sleep Hygiene"
+   - Okay → "Gratitude Journaling" or "Mindful Walk" or "Body Stretching"
+   - Good/Great → "Creative Expression" or "Mindful Walk"
+   Only return the activity name, nothing else.
+6. activitySteps: Exactly 3 steps, each under 15 words, actionable and specific to the suggested activity.
+7. reflectiveSummary: End with a forward-looking sentence. Under 50 words total.
+
+Respond ONLY with valid JSON, no extra text:
 {
   "emotionIntensity": 0.0,
   "triggerKeyword": "",
@@ -41,7 +55,7 @@ Return JSON:
   "patternInsight": "",
   "activitySuggestion": "",
   "activityDuration": "",
-  "activitySteps": "1. Step one\n2. Step two\n3. Step three", 
+  "activitySteps": "1. Step one\n2. Step two\n3. Step three",
   "reflectiveSummary": ""
 }
 ''';
@@ -108,22 +122,39 @@ Return JSON:
     }).join('\n');
 
     final prompt = '''
-You are a compassionate emotional wellness coach. Analyze these diary entries and respond ONLY in JSON.
+You are a compassionate emotional wellness coach analyzing a user's diary from the past 7 days.
+Your job is to think like a detective — find hidden patterns across time, not just summarize feelings.
 
+Here are the diary entries in chronological order:
 $entriesText
 
-Return JSON:
+ANALYSIS INSTRUCTIONS:
+1. Look for TIME-BASED patterns (e.g., mood drops on specific days of the week)
+2. Identify RECURRING TRIGGERS by comparing what was written across multiple entries
+3. Detect EMOTIONAL TRAJECTORY — is the user improving, declining, or stuck in a cycle?
+4. If negativeStreak >= 3, set riskFlag to true and write a warm, non-clinical riskMessage
+5. weeklySummary should read like a caring friend who remembers everything you shared this week
+6. recurringTrigger should be specific (e.g., "work deadlines on weekdays" not just "stress")
+
+Respond ONLY in this JSON format, no extra text:
 {
   "dominantEmotion": "",
   "avgMoodScore": 0.0,
   "recurringTrigger": "",
   "sourceOfNegativity": "",
+  "emotionalTrajectory": "improving | declining | fluctuating | stable",
   "weeklySummary": "",
+  "hiddenInsight": "",
   "positiveStreak": 0,
   "negativeStreak": 0,
   "riskFlag": false,
   "riskMessage": ""
 }
+
+Notes:
+- hiddenInsight: one surprising connection the user probably hasn't noticed themselves
+- riskMessage: if riskFlag is true, suggest ONE gentle action (e.g., "Maybe reach out to someone you trust today")
+- Keep weeklySummary under 80 words, personal and warm
 ''';
 
     try {
@@ -162,6 +193,8 @@ Return JSON:
     }
   }
 
+  
+  
   static Map<String, dynamic> fallbackResponse(int mood) {
     final responses = [
       {

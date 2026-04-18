@@ -5,6 +5,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'mood_detail_screen.dart';
+import 'weeklyReport_screen.dart';
 
 class InsightScreen extends StatefulWidget {
   const InsightScreen({super.key});
@@ -154,6 +155,46 @@ class _InsightScreenState extends State<InsightScreen> {
             _emptyCard('No entries this week.\nStart journaling to see your AI insights! 📔'),
 
           const SizedBox(height: 32),
+
+          // 在 Recent Entries 下面，SizedBox(height: 32) 之前加
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              slideRightRoute(const WeeklyReportScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF534AB7), Color(0xFF7B74D4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('View Full AI Report',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white)),
+                        Text('Hidden insights · Trajectory · Triggers',
+                            style: TextStyle(fontSize: 11, color: Colors.white70)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                ],
+              ),
+            ),
+          ),
+
         ],
       ),
     );

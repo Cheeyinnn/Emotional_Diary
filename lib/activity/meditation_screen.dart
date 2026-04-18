@@ -3,54 +3,50 @@ import 'dart:async';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
 
-
-class GenericActivityScreen extends StatefulWidget {
-  final String name;
-  final String duration;
-  final String steps;
-
-  const GenericActivityScreen({
-    super.key,
-    required this.name,
-    required this.duration,
-    required this.steps,
-  });
+class MeditationScreen extends StatefulWidget {
+  const MeditationScreen({super.key});
 
   @override
-  State<GenericActivityScreen> createState() => _GenericActivityScreenState();
+  State<MeditationScreen> createState() => _MeditationScreenState();
 }
 
-class _GenericActivityScreenState extends State<GenericActivityScreen> {
-  late int _totalSeconds;
-  late int _remainingSeconds;
+class _MeditationScreenState extends State<MeditationScreen>
+    with SingleTickerProviderStateMixin {
+  static const int _totalSeconds = 10 * 60; // 10 min
+  int _remainingSeconds = _totalSeconds;
   Timer? _timer;
   bool _isRunning = false;
   bool _isCompleted = false;
   int _currentStep = 0;
 
-  List<String> get _steps => widget.steps
-      .split('\n')
-      .map((s) => s.replaceAll(RegExp(r'^\d+\.\s*'), '').trim())
-      .where((s) => s.isNotEmpty)
-      .toList();
+  final List<String> _steps = [
+    'Find a comfortable position, close your eyes, and relax your shoulders.',
+    'Breathe in slowly through your nose for 4 counts.',
+    'Hold your breath gently for 4 counts.',
+    'Exhale fully through your mouth for 6 counts.',
+    'Let your thoughts pass like clouds — observe, don\'t engage.',
+  ];
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _totalSeconds = _parseDuration(widget.duration);
-    _remainingSeconds = _totalSeconds;
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _pulseController.dispose();
     super.dispose();
-  }
-
-  int _parseDuration(String duration) {
-    final match = RegExp(r'(\d+)').firstMatch(duration);
-    final minutes = int.tryParse(match?.group(1) ?? '10') ?? 10;
-    return minutes * 60;
   }
 
   void _toggleTimer() {
@@ -69,13 +65,9 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
         } else {
           setState(() {
             _remainingSeconds--;
-            // Auto-advance steps based on time
             final progress = 1 - (_remainingSeconds / _totalSeconds);
-            final steps = _steps;
-            if (steps.isNotEmpty) {
-              _currentStep =
-                  (progress * steps.length).floor().clamp(0, steps.length - 1);
-            }
+            _currentStep =
+                (progress * _steps.length).floor().clamp(0, _steps.length - 1);
           });
         }
       });
@@ -88,17 +80,14 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  double get _progress =>
-      _totalSeconds == 0 ? 0 : 1 - (_remainingSeconds / _totalSeconds);
+  double get _progress => 1 - (_remainingSeconds / _totalSeconds);
 
   @override
   Widget build(BuildContext context) {
-    final steps = _steps;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1D9E75),
+        backgroundColor: const Color(0xFF534AB7),
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -115,17 +104,17 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
       ),
       body: Column(
         children: [
-          // Green header
+          // Purple header
           Container(
-            color: const Color(0xFF1D9E75),
+            color: const Color(0xFF534AB7),
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
             width: double.infinity,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.name,
-                  style: const TextStyle(
+                const Text(
+                  'Guided Meditation',
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -133,7 +122,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  widget.duration,
+                  '10 min · Calm your mind',
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.white.withOpacity(0.75),
@@ -147,27 +136,55 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
+                // Pulse circle
+                Center(
+                  child: AnimatedBuilder(
+                    animation: _pulseAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _isRunning ? _pulseAnimation.value : 1.0,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF534AB7).withOpacity(0.12),
+                            border: Border.all(
+                              color: const Color(0xFF534AB7).withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.self_improvement,
+                            size: 44,
+                            color: Color(0xFF534AB7),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // Timer card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1D9E75).withOpacity(0.07),
+                    color: const Color(0xFF534AB7).withOpacity(0.07),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     children: [
-                      // Time display
                       Text(
                         _timeDisplay,
                         style: const TextStyle(
                           fontSize: 36,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1D9E75),
+                          color: Color(0xFF534AB7),
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Progress bar
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
@@ -176,12 +193,11 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                             minHeight: 6,
                             backgroundColor: const Color(0xFFE0E0E0),
                             valueColor: const AlwaysStoppedAnimation(
-                                Color(0xFF1D9E75)),
+                                Color(0xFF534AB7)),
                           ),
                         ),
                       ),
                       const SizedBox(width: 16),
-                      // Play/Pause button
                       GestureDetector(
                         onTap: _isCompleted ? null : _toggleTimer,
                         child: Container(
@@ -190,7 +206,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                           decoration: BoxDecoration(
                             color: _isCompleted
                                 ? Colors.grey
-                                : const Color(0xFF1D9E75),
+                                : const Color(0xFF534AB7),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -206,7 +222,6 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
 
                 const SizedBox(height: 24),
 
-                // Steps
                 const Text(
                   'STEPS',
                   style: TextStyle(
@@ -218,7 +233,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                ...List.generate(steps.length, (i) {
+                ...List.generate(_steps.length, (i) {
                   final isDone = i < _currentStep;
                   final isCurrent = i == _currentStep;
                   return Padding(
@@ -226,18 +241,15 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Step number circle
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isDone
-                                ? const Color(0xFF1D9E75)
-                                : isCurrent
-                                    ? const Color(0xFF1D9E75)
-                                    : const Color(0xFFE8E8E8),
+                            color: isDone || isCurrent
+                                ? const Color(0xFF534AB7)
+                                : const Color(0xFFE8E8E8),
                           ),
                           child: Center(
                             child: isDone
@@ -266,7 +278,7 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                                   ? const Color(0xFF1A1A2E)
                                   : const Color(0xFFB4B2A9),
                             ),
-                            child: Text(steps[i]),
+                            child: Text(_steps[i]),
                           ),
                         ),
                       ],
@@ -276,7 +288,6 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
 
                 const SizedBox(height: 24),
 
-                // Complete button
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -287,8 +298,8 @@ class _GenericActivityScreenState extends State<GenericActivityScreen> {
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isCompleted
-                          ? const Color(0xFF1D9E75)
-                          : const Color(0xFF1D9E75).withOpacity(0.4),
+                          ? const Color(0xFF534AB7)
+                          : const Color(0xFF534AB7).withOpacity(0.4),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(27)),
