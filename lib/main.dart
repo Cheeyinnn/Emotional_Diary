@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart'; // 🔥 Added
-import 'firebase_options.dart'; // 🔥 Added
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'firebase_options.dart';
 import 'providers/diary_provider.dart';
 import 'screens/welcome_screen.dart';
 
-// Change main to 'async' so we can wait for Firebase to start
-void main() async { 
-  // 1. Essential: Initialize Flutter's engine bindings
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Start Firebase using your generated options
+  await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

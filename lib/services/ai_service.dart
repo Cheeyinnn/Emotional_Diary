@@ -1,16 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/diary_entry.dart';
 
 class AiService {
 
-  static const String _apiKey = 'AIzaSyAABt4UE3-tQss2XpZKINmkpNWbZPdemYs';
+  static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
 
-  // Gemini endpoint
   static const String _apiUrl =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-  /// ✅ Analyze single diary entry
   static Future<Map<String, dynamic>> analyzeDiaryEntry({
     required String entryText,
     required int mood,
@@ -61,10 +60,15 @@ Respond ONLY with valid JSON, no extra text:
 ''';
 
     try {
+      if (_apiKey.isEmpty) {
+        throw Exception('GEMINI_API_KEY not found in .env');
+      }
+
       final response = await http.post(
-        Uri.parse("$_apiUrl?key=$_apiKey"),
+        Uri.parse(_apiUrl),
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': _apiKey,
         },
         body: jsonEncode({
           "contents": [
@@ -77,12 +81,11 @@ Respond ONLY with valid JSON, no extra text:
         }),
       );
 
-        print("STATUS: ${response.statusCode}");
-        print("BODY: ${response.body}");
+      print("STATUS: ${response.statusCode}");
+      print("BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         final text = data['candidates'][0]['content']['parts'][0]['text'];
 
         final cleaned = text
@@ -110,7 +113,6 @@ Respond ONLY with valid JSON, no extra text:
     }
   }
 
-  /// ✅ Weekly summary
   static Future<Map<String, dynamic>> generateWeeklySummary(
       List<DiaryEntry> entries) async {
     if (entries.isEmpty) {
@@ -158,10 +160,15 @@ Notes:
 ''';
 
     try {
+      if (_apiKey.isEmpty) {
+        throw Exception('GEMINI_API_KEY not found in .env');
+      }
+
       final response = await http.post(
-        Uri.parse("$_apiUrl?key=$_apiKey"),
+        Uri.parse(_apiUrl),
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': _apiKey,
         },
         body: jsonEncode({
           "contents": [
@@ -176,7 +183,6 @@ Notes:
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-
         final text = data['candidates'][0]['content']['parts'][0]['text'];
 
         final cleaned = text
@@ -271,6 +277,4 @@ Notes:
       'riskMessage': '',
     };
   }
-
-
 }
