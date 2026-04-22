@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../screens/home_screen.dart';
+import '../utils/transitions.dart';
 
 class GratitudeJournalingScreen extends StatefulWidget {
-  const GratitudeJournalingScreen({super.key});
+  final bool fromWellness;
+  const GratitudeJournalingScreen({super.key, this.fromWellness = false});
 
   @override
   State<GratitudeJournalingScreen> createState() =>
@@ -29,6 +32,17 @@ class _GratitudeJournalingScreenState
     super.dispose();
   }
 
+  void _handleBack() {
+    if (widget.fromWellness) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        fadeScaleRoute(const HomeScreen()),
+        (r) => false,
+      );
+    }
+  }
+
   void _submit() {
     final filled = _controllers.every((c) => c.text.trim().isNotEmpty);
     if (!filled) {
@@ -51,7 +65,7 @@ class _GratitudeJournalingScreenState
         backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _handleBack,
         ),
         title: const Text('Gratitude Journaling',
             style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -68,10 +82,11 @@ class _GratitudeJournalingScreenState
       padding: const EdgeInsets.all(24),
       children: [
         const SizedBox(height: 8),
-         Text('Gratitude shifts your focus\nfrom what\'s missing to what\'s present.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                color: Colors.white54, fontSize: 13, height: 1.5)),
+        const Text(
+          'Gratitude shifts your focus\nfrom what\'s missing to what\'s present.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+        ),
         const SizedBox(height: 32),
 
         ...List.generate(3, (i) => _buildCard(i)),
@@ -90,8 +105,7 @@ class _GratitudeJournalingScreenState
               elevation: 0,
             ),
             child: const Text('Save Gratitudes',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ),
       ],
@@ -170,43 +184,41 @@ class _GratitudeJournalingScreenState
               'You\'ve taken a moment to appreciate the good.\nThat matters.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white54,
-                fontSize: 14,
-                height: 1.6,
-              ),
+                  color: Colors.white54, fontSize: 14, height: 1.6),
             ),
             const SizedBox(height: 40),
 
-            // Show what they wrote
-            ...List.generate(3, (i) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _accent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: _accent.withOpacity(0.3), width: 1),
+            ...List.generate(
+              3,
+              (i) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: _accent.withOpacity(0.3), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const Text('🙏', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(_controllers[i].text,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 13)),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                children: [
-                  const Text('🙏',
-                      style: TextStyle(fontSize: 18)),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(_controllers[i].text,
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 13)),
-                  ),
-                ],
-              ),
-            )),
+            ),
 
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _handleBack,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _accent,
                   foregroundColor: Colors.white,
@@ -214,8 +226,8 @@ class _GratitudeJournalingScreenState
                       borderRadius: BorderRadius.circular(25)),
                   elevation: 0,
                 ),
-                child: const Text('Done',
-                    style: TextStyle(fontSize: 16)),
+                child:
+                    const Text('Done', style: TextStyle(fontSize: 16)),
               ),
             ),
           ],

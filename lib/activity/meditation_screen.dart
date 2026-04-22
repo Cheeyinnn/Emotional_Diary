@@ -4,7 +4,8 @@ import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
 
 class MeditationScreen extends StatefulWidget {
-  const MeditationScreen({super.key});
+  final bool fromWellness;
+  const MeditationScreen({super.key, this.fromWellness = false});
 
   @override
   State<MeditationScreen> createState() => _MeditationScreenState();
@@ -12,7 +13,7 @@ class MeditationScreen extends StatefulWidget {
 
 class _MeditationScreenState extends State<MeditationScreen>
     with SingleTickerProviderStateMixin {
-  static const int _totalSeconds = 10 * 60; // 10 min
+  static const int _totalSeconds = 10 * 60;
   int _remainingSeconds = _totalSeconds;
   Timer? _timer;
   bool _isRunning = false;
@@ -47,6 +48,17 @@ class _MeditationScreenState extends State<MeditationScreen>
     _timer?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _handleBack() {
+    if (widget.fromWellness) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        fadeScaleRoute(const HomeScreen()),
+        (r) => false,
+      );
+    }
   }
 
   void _toggleTimer() {
@@ -92,10 +104,7 @@ class _MeditationScreenState extends State<MeditationScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            fadeScaleRoute(const HomeScreen()),
-            (r) => false,
-          ),
+          onPressed: _handleBack,
         ),
         title: const Text(
           'Recommended Activity',
@@ -104,7 +113,6 @@ class _MeditationScreenState extends State<MeditationScreen>
       ),
       body: Column(
         children: [
-          // Purple header
           Container(
             color: const Color(0xFF534AB7),
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
@@ -115,28 +123,23 @@ class _MeditationScreenState extends State<MeditationScreen>
                 const Text(
                   'Guided Meditation',
                   style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '10 min · Calm your mind',
                   style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.75),
-                  ),
+                      fontSize: 13, color: Colors.white.withOpacity(0.75)),
                 ),
               ],
             ),
           ),
-
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                // Pulse circle
                 Center(
                   child: AnimatedBuilder(
                     animation: _pulseAnimation,
@@ -148,25 +151,22 @@ class _MeditationScreenState extends State<MeditationScreen>
                           height: 100,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: const Color(0xFF534AB7).withOpacity(0.12),
+                            color:
+                                const Color(0xFF534AB7).withOpacity(0.12),
                             border: Border.all(
-                              color: const Color(0xFF534AB7).withOpacity(0.3),
+                              color:
+                                  const Color(0xFF534AB7).withOpacity(0.3),
                               width: 2,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.self_improvement,
-                            size: 44,
-                            color: Color(0xFF534AB7),
-                          ),
+                          child: const Icon(Icons.self_improvement,
+                              size: 44, color: Color(0xFF534AB7)),
                         ),
                       );
                     },
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Timer card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -175,15 +175,13 @@ class _MeditationScreenState extends State<MeditationScreen>
                   ),
                   child: Row(
                     children: [
-                      Text(
-                        _timeDisplay,
-                        style: const TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF534AB7),
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
+                      Text(_timeDisplay,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF534AB7),
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          )),
                       const SizedBox(width: 16),
                       Expanded(
                         child: ClipRRect(
@@ -210,29 +208,22 @@ class _MeditationScreenState extends State<MeditationScreen>
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _isRunning ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white,
-                            size: 24,
-                          ),
+                              _isRunning ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 24),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                const Text(
-                  'STEPS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF888780),
-                    letterSpacing: 1.2,
-                  ),
-                ),
+                const Text('STEPS',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF888780),
+                        letterSpacing: 1.2)),
                 const SizedBox(height: 12),
-
                 ...List.generate(_steps.length, (i) {
                   final isDone = i < _currentStep;
                   final isCurrent = i == _currentStep;
@@ -255,16 +246,13 @@ class _MeditationScreenState extends State<MeditationScreen>
                             child: isDone
                                 ? const Icon(Icons.check,
                                     size: 14, color: Colors.white)
-                                : Text(
-                                    '${i + 1}',
+                                : Text('${i + 1}',
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isCurrent
-                                          ? Colors.white
-                                          : const Color(0xFF888780),
-                                    ),
-                                  ),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isCurrent
+                                            ? Colors.white
+                                            : const Color(0xFF888780))),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -272,12 +260,11 @@ class _MeditationScreenState extends State<MeditationScreen>
                           child: AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 300),
                             style: TextStyle(
-                              fontSize: 14,
-                              height: 1.6,
-                              color: (isDone || isCurrent)
-                                  ? const Color(0xFF1A1A2E)
-                                  : const Color(0xFFB4B2A9),
-                            ),
+                                fontSize: 14,
+                                height: 1.6,
+                                color: (isDone || isCurrent)
+                                    ? const Color(0xFF1A1A2E)
+                                    : const Color(0xFFB4B2A9)),
                             child: Text(_steps[i]),
                           ),
                         ),
@@ -285,17 +272,12 @@ class _MeditationScreenState extends State<MeditationScreen>
                     ),
                   );
                 }),
-
                 const SizedBox(height: 24),
-
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                      fadeScaleRoute(const HomeScreen()),
-                      (r) => false,
-                    ),
+                    onPressed: _handleBack,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isCompleted
                           ? const Color(0xFF534AB7)
@@ -305,9 +287,12 @@ class _MeditationScreenState extends State<MeditationScreen>
                           borderRadius: BorderRadius.circular(27)),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.check_circle_outline, size: 20),
+                    icon:
+                        const Icon(Icons.check_circle_outline, size: 20),
                     label: Text(
-                      _isCompleted ? 'Activity Complete!' : 'Mark as Complete',
+                      _isCompleted
+                          ? 'Activity Complete!'
+                          : 'Mark as Complete',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w600),
                     ),

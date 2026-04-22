@@ -19,8 +19,12 @@ class AiService {
     final moodLabels = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
     final currentMoodLabel = moodLabels[mood.clamp(0, 4)];
 
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final historyContext = recentEntries.take(7).map((e) {
-      return '- ${e.createdAt.day}/${e.createdAt.month}: Mood=${e.moodLabel}, Entry="${e.entryText.substring(0, e.entryText.length.clamp(0, 80))}..."';
+      final dayName = days[e.createdAt.weekday - 1];
+      final trigger = e.triggerKeyword != null ? ' | Trigger: ${e.triggerKeyword}' : '';
+      final text = e.entryText.substring(0, e.entryText.length.clamp(0, 80));
+      return '- [$dayName ${e.createdAt.day}/${e.createdAt.month}] Mood: ${e.moodLabel} (${e.mood}/4)$trigger | "$text"';
     }).join('\n');
 
     final prompt = '''
@@ -112,50 +116,55 @@ Respond ONLY with valid JSON, no extra text:
 
   /// ✅ Weekly summary
   static Future<Map<String, dynamic>> generateWeeklySummary(
-      List<DiaryEntry> entries) async {
-    if (entries.isEmpty) {
-      return _fallbackWeeklySummary(entries);
-    }
 
-    final entriesText = entries.map((e) {
-      return '${e.createdAt.day}/${e.createdAt.month} | Mood: ${e.moodLabel} (${e.mood}) | "${e.entryText.substring(0, e.entryText.length.clamp(0, 100))}"';
+    List<DiaryEntry> entries) async {
+      if (entries.isEmpty) {
+        return _fallbackWeeklySummary(entries);
+      }
+
+      final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      final entriesText = entries.map((e) {
+      final dayName = days[e.createdAt.weekday - 1];
+      final trigger = e.triggerKeyword != null ? ' | Trigger: ${e.triggerKeyword}' : '';
+      final text = e.entryText.substring(0, e.entryText.length.clamp(0, 100));
+      return '[$dayName ${e.createdAt.day}/${e.createdAt.month}] Mood: ${e.moodLabel} (${e.mood}/4)$trigger | "$text"';
     }).join('\n');
 
     final prompt = '''
-You are a compassionate emotional wellness coach analyzing a user's diary from the past 7 days.
-Your job is to think like a detective — find hidden patterns across time, not just summarize feelings.
+        You are a compassionate emotional wellness coach analyzing a user's diary from the past 7 days.
+        Your job is to think like a detective — find hidden patterns across time, not just summarize feelings.
 
-Here are the diary entries in chronological order:
-$entriesText
+        Here are the diary entries in chronological order:
+        $entriesText
 
-ANALYSIS INSTRUCTIONS:
-1. Look for TIME-BASED patterns (e.g., mood drops on specific days of the week)
-2. Identify RECURRING TRIGGERS by comparing what was written across multiple entries
-3. Detect EMOTIONAL TRAJECTORY — is the user improving, declining, or stuck in a cycle?
-4. If negativeStreak >= 3, set riskFlag to true and write a warm, non-clinical riskMessage
-5. weeklySummary should read like a caring friend who remembers everything you shared this week
-6. recurringTrigger should be specific (e.g., "work deadlines on weekdays" not just "stress")
+        ANALYSIS INSTRUCTIONS:
+        1. Look for TIME-BASED patterns (e.g., mood drops on specific days of the week)
+        2. Identify RECURRING TRIGGERS by comparing what was written across multiple entries
+        3. Detect EMOTIONAL TRAJECTORY — is the user improving, declining, or stuck in a cycle?
+        4. If negativeStreak >= 3, set riskFlag to true and write a warm, non-clinical riskMessage
+        5. weeklySummary should read like a caring friend who remembers everything you shared this week
+        6. recurringTrigger should be specific (e.g., "work deadlines on weekdays" not just "stress")
 
-Respond ONLY in this JSON format, no extra text:
-{
-  "dominantEmotion": "",
-  "avgMoodScore": 0.0,
-  "recurringTrigger": "",
-  "sourceOfNegativity": "",
-  "emotionalTrajectory": "improving | declining | fluctuating | stable",
-  "weeklySummary": "",
-  "hiddenInsight": "",
-  "positiveStreak": 0,
-  "negativeStreak": 0,
-  "riskFlag": false,
-  "riskMessage": ""
-}
+        Respond ONLY in this JSON format, no extra text:
+        {
+          "dominantEmotion": "",
+          "avgMoodScore": 0.0,
+          "recurringTrigger": "",
+          "sourceOfNegativity": "",
+          "emotionalTrajectory": "improving | declining | fluctuating | stable",
+          "weeklySummary": "",
+          "hiddenInsight": "",
+          "positiveStreak": 0,
+          "negativeStreak": 0,
+          "riskFlag": false,
+          "riskMessage": ""
+        }
 
-Notes:
-- hiddenInsight: one surprising connection the user probably hasn't noticed themselves
-- riskMessage: if riskFlag is true, suggest ONE gentle action (e.g., "Maybe reach out to someone you trust today")
-- Keep weeklySummary under 80 words, personal and warm
-''';
+        Notes:
+        - hiddenInsight: one surprising connection the user probably hasn't noticed themselves
+        - riskMessage: if riskFlag is true, suggest ONE gentle action (e.g., "Maybe reach out to someone you trust today")
+        - Keep weeklySummary under 80 words, personal and warm
+        ''';
 
     try {
       final response = await http.post(

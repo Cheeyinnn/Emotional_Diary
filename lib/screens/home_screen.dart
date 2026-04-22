@@ -491,15 +491,35 @@ class _HomeTab extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context)
-            .push(slideUpRoute(const LogMoodScreen())),
-        backgroundColor: const Color(0xFF1D9E75),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Log Mood',
-            style: TextStyle(fontWeight: FontWeight.w600)),
-      ),
+
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            final todayEntry = context.read<DiaryProvider>().todayEntry;
+            if (todayEntry != null) {
+              // 今天已经 log 了 → 直接跳 edit mode
+              Navigator.of(context).push(
+                slideUpRoute(LogMoodScreen(existingEntry: todayEntry)),
+              );
+            } else {
+              Navigator.of(context).push(
+                slideUpRoute(const LogMoodScreen()),
+              );
+            }
+          },
+          backgroundColor: const Color(0xFF1D9E75),
+          foregroundColor: Colors.white,
+          icon: Icon(
+            context.watch<DiaryProvider>().todayEntry != null
+                ? Icons.edit_outlined
+                : Icons.add,
+          ),
+          label: Text(
+            context.watch<DiaryProvider>().todayEntry != null
+                ? 'Edit Today'
+                : 'Log Mood',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
     );
   }
 

@@ -65,6 +65,62 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
   Future<void> _save() async {
     if (_isSaving) return;
+
+    // ── 每天只能 log 一次 ──
+    if (!widget.isEditing) {
+      final provider = context.read<DiaryProvider>();
+      if (provider.todayEntry != null) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Text('📝', style: TextStyle(fontSize: 20)),
+                SizedBox(width: 8),
+                Text('Already logged today',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            content: const Text(
+              "You've already logged your mood today. Would you like to edit your existing entry instead?",
+              style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF444441)),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel',
+                    style: TextStyle(color: Color(0xFF888780))),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LogMoodScreen(
+                        existingEntry: provider.todayEntry,
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1D9E75),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                child: const Text('Edit Instead'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
 
     final provider = context.read<DiaryProvider>();

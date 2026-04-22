@@ -14,6 +14,7 @@ class GenericActivityScreen extends StatefulWidget {
     required this.name,
     required this.duration,
     required this.steps,
+    bool fromWellness = false,
   });
 
   @override

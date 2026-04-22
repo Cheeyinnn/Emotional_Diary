@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import '../screens/home_screen.dart';
+import '../utils/transitions.dart';
 
 class CreativeExpressionScreen extends StatefulWidget {
-  const CreativeExpressionScreen({super.key});
+  final bool fromWellness;
+  const CreativeExpressionScreen({super.key, this.fromWellness = false});
 
   @override
   State<CreativeExpressionScreen> createState() =>
       _CreativeExpressionScreenState();
 }
 
-class _CreativeExpressionScreenState
-    extends State<CreativeExpressionScreen> {
+class _CreativeExpressionScreenState extends State<CreativeExpressionScreen> {
   final _controller = TextEditingController();
   int _promptIndex = 0;
   bool _done = false;
@@ -50,6 +52,17 @@ class _CreativeExpressionScreenState
     setState(() => _done = true);
   }
 
+  void _handleBack() {
+    if (widget.fromWellness) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        fadeScaleRoute(const HomeScreen()),
+        (r) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,7 +72,7 @@ class _CreativeExpressionScreenState
         backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _handleBack,
         ),
         title: const Text('Creative Expression',
             style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -93,8 +106,7 @@ class _CreativeExpressionScreenState
             decoration: BoxDecoration(
               color: _accent.withOpacity(0.15),
               borderRadius: BorderRadius.circular(16),
-              border:
-                  Border.all(color: _accent.withOpacity(0.4), width: 1),
+              border: Border.all(color: _accent.withOpacity(0.4), width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,7 +205,8 @@ class _CreativeExpressionScreenState
                     fontSize: 22,
                     fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            const Text('Putting feelings into words\nis a powerful act of self-care.',
+            const Text(
+                'Putting feelings into words\nis a powerful act of self-care.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: Colors.white54, fontSize: 14, height: 1.6)),
@@ -203,8 +216,8 @@ class _CreativeExpressionScreenState
               decoration: BoxDecoration(
                 color: _accent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: _accent.withOpacity(0.3), width: 1),
+                border:
+                    Border.all(color: _accent.withOpacity(0.3), width: 1),
               ),
               child: Text(_controller.text,
                   style: const TextStyle(
@@ -217,7 +230,7 @@ class _CreativeExpressionScreenState
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _handleBack,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _accent,
                   foregroundColor: Colors.white,
@@ -225,8 +238,7 @@ class _CreativeExpressionScreenState
                       borderRadius: BorderRadius.circular(25)),
                   elevation: 0,
                 ),
-                child: const Text('Done',
-                    style: TextStyle(fontSize: 16)),
+                child: const Text('Done', style: TextStyle(fontSize: 16)),
               ),
             ),
           ],

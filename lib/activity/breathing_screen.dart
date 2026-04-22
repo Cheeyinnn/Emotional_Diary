@@ -1,10 +1,14 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../screens/home_screen.dart';
+import '../utils/transitions.dart';
+import '../screens/wellness_screen.dart';
 
 enum BreathPhase { inhale, holdIn, exhale, holdOut }
 
 class BreathingScreen extends StatefulWidget {
-  const BreathingScreen({super.key});
+  final bool fromWellness;
+  const BreathingScreen({super.key, this.fromWellness = false});
 
   @override
   State<BreathingScreen> createState() => _BreathingScreenState();
@@ -65,6 +69,17 @@ class _BreathingScreenState extends State<BreathingScreen>
     _scaleController.dispose();
     _rotateController.dispose();
     super.dispose();
+  }
+
+  void _handleBack() {
+    if (widget.fromWellness) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        fadeScaleRoute(const HomeScreen()),
+        (r) => false,
+      );
+    }
   }
 
   void _start() {
@@ -129,7 +144,7 @@ class _BreathingScreenState extends State<BreathingScreen>
         backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _handleBack,
         ),
         title: const Text('Box Breathing',
             style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -139,7 +154,6 @@ class _BreathingScreenState extends State<BreathingScreen>
         child: Column(
           children: [
             const SizedBox(height: 16),
-            // Subtitle
             const Text('4 - 4 - 4 - 4 technique',
                 style: TextStyle(color: Colors.white54, fontSize: 13)),
             const Spacer(),
@@ -154,7 +168,6 @@ class _BreathingScreenState extends State<BreathingScreen>
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Rotating outer ring
                       Transform.rotate(
                         angle: _rotateController.value * 2 * pi,
                         child: CustomPaint(
@@ -162,7 +175,6 @@ class _BreathingScreenState extends State<BreathingScreen>
                           painter: _RingPainter(color: color.withOpacity(0.3)),
                         ),
                       ),
-                      // Scale circle
                       Transform.scale(
                         scale: _scaleAnim.value,
                         child: Container(
@@ -176,7 +188,6 @@ class _BreathingScreenState extends State<BreathingScreen>
                           ),
                         ),
                       ),
-                      // Inner glow
                       Container(
                         width: 120,
                         height: 120,
@@ -185,7 +196,6 @@ class _BreathingScreenState extends State<BreathingScreen>
                           color: color.withOpacity(0.25),
                         ),
                       ),
-                      // Phase label + countdown
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -373,7 +383,6 @@ class _RingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 4;
 
-    // Draw dashed arc
     for (int i = 0; i < 24; i++) {
       final startAngle = (i * 15) * pi / 180;
       canvas.drawArc(
