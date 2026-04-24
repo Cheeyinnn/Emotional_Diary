@@ -468,72 +468,67 @@ class _ActivityDonutChart extends StatelessWidget {
 
     return Row(
       children: [
+        // 左侧图表部分
         Expanded(
-          flex: 3,
-          child: PieChart(
-            PieChartData(
-              sectionsSpace: 4, // Increased space for a cleaner "cut" look
-              centerSpaceRadius: 45, // Slightly larger for a sleeker ring
-              startDegreeOffset: -90,
-              sections: List.generate(entries.length, (i) {
-                final pct = entries[i].value / total * 100;
-                return PieChartSectionData(
-                  color: _colors[i % _colors.length],
-                  value: entries[i].value.toDouble(),
-                  title: '${pct.round()}%',
-                  radius: 50,
-                  titleStyle: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                  // Only show title if there's enough room
-                  showTitle: pct > 10, 
-                  titlePositionPercentageOffset: 0.5,
-                );
-              }),
+          flex: 2, // 调小比例，让图表占位更少
+          child: SizedBox(
+            height: 100, // 限制高度，防止它过度膨胀
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 25, // 核心：调小中间空心 (原本是 40+)
+                startDegreeOffset: -90,
+                sections: List.generate(entries.length, (i) {
+                  final pct = entries[i].value / total * 100;
+                  return PieChartSectionData(
+                    color: _colors[i % _colors.length],
+                    value: entries[i].value.toDouble(),
+                    title: '${pct.round()}%',
+                    radius: 20, // 核心：调小圆环厚度 (原本是 48)
+                    titleStyle: const TextStyle(
+                      fontSize: 8, // 字也要变小
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    showTitle: pct > 20, // 只有比例够大才显示文字
+                  );
+                }),
+              ),
             ),
           ),
         ),
-        const SizedBox(width: 20),
+        const SizedBox(width: 12),
+        // 右侧文字列表
         Expanded(
-          flex: 4,
+          flex: 3,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: entries.asMap().entries.map((entry) {
-              int i = entry.key;
-              var val = entry.value;
+            children: entries.map((e) {
+              int index = entries.indexOf(e);
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
                     Container(
-                      width: 10,
-                      height: 10,
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
-                        color: _colors[i % _colors.length],
-                        borderRadius: BorderRadius.circular(3),
+                        color: _colors[index % _colors.length],
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        val.key,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF444441),
-                          fontWeight: FontWeight.w500,
-                        ),
+                        e.key,
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF444441)),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Text(
-                      '×${val.value}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFB4B2A9),
-                      ),
+                      '×${e.value}',
+                      style: const TextStyle(fontSize: 10, color: Color(0xFFB4B2A9)),
                     ),
                   ],
                 ),
@@ -545,7 +540,6 @@ class _ActivityDonutChart extends StatelessWidget {
     );
   }
 }
-
 // ─── AI Summary Card ─────────────────────────────────────────────────────────
 
 class _AiSummaryCard extends StatelessWidget {
