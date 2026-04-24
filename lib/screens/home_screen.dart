@@ -27,13 +27,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late int _selectedIndex;
-
-  final List<Widget> _screens = const [
-    _HomeTab(),
-    CalendarScreen(),
-    InsightScreen(),
-    ProfileScreen(),
-  ];
+  int _homeRefreshKey = 0;
 
   @override
   void initState() {
@@ -43,8 +37,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      _HomeTab(refreshKey: _homeRefreshKey),
+      const CalendarScreen(),
+      const InsightScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: _screens),
+      body: IndexedStack(index: _selectedIndex, children: screens),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -52,7 +53,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
-          onTap: (i) => setState(() => _selectedIndex = i),
+          onTap: (i) {
+            setState(() {
+              _selectedIndex = i;
+
+              // reload Home settings when user taps Home tab
+              if (i == 0) {
+                _homeRefreshKey++;
+              }
+            });
+          },
           backgroundColor: Colors.white,
           selectedItemColor: const Color(0xFF1D9E75),
           unselectedItemColor: const Color(0xFFB4B2A9),
@@ -90,7 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _HomeTab extends StatefulWidget {
-  const _HomeTab();
+  final int refreshKey;
+  const _HomeTab({required this.refreshKey});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -103,6 +114,15 @@ class _HomeTabState extends State<_HomeTab> {
   void initState() {
     super.initState();
     _loadRiskAlertSetting();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.refreshKey != widget.refreshKey) {
+      _loadRiskAlertSetting();
+    }
   }
 
   Future<void> _loadRiskAlertSetting() async {
@@ -230,9 +250,7 @@ class _HomeTabState extends State<_HomeTab> {
                         Icons.notifications_outlined,
                         color: Color(0xFF1A1A2E),
                       ),
-                      onPressed: () async {
-                        await _loadRiskAlertSetting();
-                      },
+                      onPressed: () {},
                     ),
                   ],
                 ),
