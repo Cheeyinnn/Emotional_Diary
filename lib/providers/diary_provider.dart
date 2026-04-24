@@ -15,6 +15,9 @@ class DiaryProvider extends ChangeNotifier {
   Map<String, dynamic>? _weeklySummary;
   bool _isLoadingWeekly = false;
 
+  // ── FIX 2: track when the weekly summary was last generated ───────────────
+  DateTime? _summaryGeneratedAt;
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -108,20 +111,51 @@ class DiaryProvider extends ChangeNotifier {
     }
   }
 
+  // ── FIX 1: trigger weekly summary based on TIME, not entry count ──────────
+  // Shows weekly summary if:
+  //   (a) risk flag is triggered, OR
+  //   (b) the user's oldest entry is at least 7 days ago (real 7-day window)
   bool get shouldShowWeeklySummary {
     if (hasRiskFlag) return true;
-    if (_entries.isNotEmpty && _entries.length % 7 == 0) return true;
-    return false;
-  }
 
-  bool get hasRiskFlag {
     if (_entries.length < 3) return false;
 
-    final sorted = [..._entries]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final oldest = _entries
+        .map((e) => e.createdAt)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
 
-    return sorted.take(3).every((e) => e.mood <= 1) ||
-        sorted.take(5).where((e) => e.mood <= 1).length >= 4;
+    final daysSinceFirst = DateTime.now().difference(oldest).inDays;
+    return daysSinceFirst >= 7;
+  }
+
+  // ── FIX 2: stale check — summary older than 12 hours should be refreshed ──
+  bool get isWeeklySummaryStale {
+    if (_summaryGeneratedAt == null) return true;
+    return DateTime.now().difference(_summaryGeneratedAt!).inHours > 12;
+  }
+
+  // ── FIX 3: hasRiskFlag now works per-day, not per-entry ───────────────────
+  // Prevents false positives from a user writing multiple entries in one day.
+  bool get hasRiskFlag {
+    final recentMoods = _getRecentDailyMoods(5);
+    if (recentMoods.length < 3) return false;
+    final lowCount = recentMoods.where((m) => m <= 1).length;
+    return lowCount >= 3;
+  }
+
+  // Returns the mood score for each of the past [days] days that has an entry.
+  // Uses one entry per day (the most recent one for that day).
+  List<int> _getRecentDailyMoods(int days) {
+    final now = DateTime.now();
+    final result = <int>[];
+
+    for (int i = 0; i < days; i++) {
+      final date = now.subtract(Duration(days: i));
+      final mood = getMoodForDate(date);
+      if (mood != null) result.add(mood);
+    }
+
+    return result;
   }
 
   Future<void> loadEntries() async {
@@ -415,14 +449,17 @@ class DiaryProvider extends ChangeNotifier {
     return result;
   }
 
+  // ── FIX 2: stamp the time when summary is generated ───────────────────────
   Future<void> loadWeeklySummary() async {
     _isLoadingWeekly = true;
     notifyListeners();
 
     try {
       _weeklySummary = await AiService.generateWeeklySummary(last7Days);
+      _summaryGeneratedAt = DateTime.now(); // stamp generation time
     } catch (_) {
       _weeklySummary = null;
+      _summaryGeneratedAt = null;
     }
 
     _isLoadingWeekly = false;
@@ -431,6 +468,8 @@ class DiaryProvider extends ChangeNotifier {
 
   int? getMoodForDate(DateTime date) {
     try {
+      // ── FIX 3: if multiple entries exist for the same day,
+      //           use the most recent one (sorted descending already)
       final entry = _entries.firstWhere(
         (e) =>
             e.createdAt.year == date.year &&

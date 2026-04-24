@@ -56,7 +56,7 @@ class AiRespondScreen extends StatelessWidget {
             height: 64,
             decoration: BoxDecoration(
               color: const Color(0xFFE1F5EE),
-              shape: BoxShape.circle,
+              shape: BoxShape.circle, 
               border: Border.all(
                   color: const Color(0xFF1D9E75).withOpacity(0.3), width: 2),
             ),
@@ -202,51 +202,80 @@ class AiRespondScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1D9E75),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text('RECOMMENDED ACTIVITY',
-                    style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1)),
-              ),
-              const SizedBox(height: 12),
+              // 标签
               Row(
                 children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE1F5EE),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text('RECOMMENDED ACTIVITY',
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFF0F6E56),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Activity name + play button
+              Row(
+                children: [
+                  // Icon circle
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE1F5EE),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.spa,
+                        color: Color(0xFF1D9E75), size: 24),
+                  ),
+                  const SizedBox(width: 14),
                   Expanded(
-                    child: Text(
-                      ai['activitySuggestion'] as String? ?? 'Box Breathing',
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          ai['activitySuggestion'] as String? ?? 'Box Breathing',
+                          style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A2E)),
+                        ),
+                        if (duration != null && duration.isNotEmpty)
+                          Text(duration,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF888780))),
+                      ],
                     ),
                   ),
+                  // Play button
                   GestureDetector(
                     onTap: () => ActivityRouter.navigate(
                       context,
                       ai['activitySuggestion'] as String? ?? 'Box Breathing',
                       duration: ai['activityDuration'] as String?,
-                      steps: ai['activitySteps'] as String?,  // 新增
-
+                      steps: ai['activitySteps'] as String?,
                     ),
                     child: Container(
                       width: 44,
                       height: 44,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1D9E75),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.play_arrow,
@@ -255,13 +284,6 @@ class AiRespondScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              if (duration != null && duration.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(duration,
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.white.withOpacity(0.8))),
-              ],
             ],
           ),
         ),
@@ -333,9 +355,6 @@ class AiRespondScreen extends StatelessWidget {
               );
             },
           ),
-
-        
-
 
         // Skip button
         TextButton(
