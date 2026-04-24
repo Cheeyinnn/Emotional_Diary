@@ -153,7 +153,6 @@ class PdfExportService {
                 ),
               ),
               pw.SizedBox(height: 26),
-
               pw.Container(
                 padding: const pw.EdgeInsets.all(16),
                 decoration: pw.BoxDecoration(
@@ -191,7 +190,6 @@ class PdfExportService {
                   ],
                 ),
               ),
-
               pw.SizedBox(height: 20),
               pw.Text(
                 'Exported on ${_formatDate(DateTime.now(), months)}',
@@ -207,7 +205,6 @@ class PdfExportService {
                   color: PdfColors.teal200,
                 ),
               ),
-
               pw.Spacer(),
               pw.Divider(color: PdfColors.teal500),
               pw.SizedBox(height: 12),
@@ -230,6 +227,8 @@ class PdfExportService {
                   ),
                 ],
               ),
+              pw.SizedBox(height: 16),
+              _pdfFooter(ctx, isDark: true),
             ],
           ),
         ),
@@ -250,7 +249,6 @@ class PdfExportService {
               children: [
                 _pdfSectionHeader('Emotional Overview'),
                 pw.SizedBox(height: 18),
-
                 pw.Container(
                   padding: const pw.EdgeInsets.all(14),
                   decoration: pw.BoxDecoration(
@@ -268,9 +266,7 @@ class PdfExportService {
                     ],
                   ),
                 ),
-
                 pw.SizedBox(height: 20),
-
                 pw.Container(
                   padding: const pw.EdgeInsets.all(20),
                   decoration: pw.BoxDecoration(
@@ -332,9 +328,7 @@ class PdfExportService {
                     ],
                   ),
                 ),
-
                 pw.SizedBox(height: 20),
-
                 pw.Container(
                   padding: const pw.EdgeInsets.all(14),
                   decoration: pw.BoxDecoration(
@@ -365,7 +359,6 @@ class PdfExportService {
                     ],
                   ),
                 ),
-
                 pw.SizedBox(height: 22),
                 pw.Text(
                   'Mood Distribution',
@@ -375,7 +368,6 @@ class PdfExportService {
                   ),
                 ),
                 pw.SizedBox(height: 12),
-
                 ...List.generate(5, (i) {
                   final count = moodCounts[i];
                   final maxCount = moodCounts.reduce((a, b) => a > b ? a : b);
@@ -426,17 +418,8 @@ class PdfExportService {
                     ),
                   );
                 }),
-
                 pw.Spacer(),
-                pw.Divider(),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'UCCD3223 Mobile Applications Development — Group 39',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey500,
-                  ),
-                ),
+                _pdfFooter(ctx),
               ],
             ),
           ),
@@ -474,26 +457,7 @@ class PdfExportService {
                   ),
                 ),
                 pw.Spacer(),
-                pw.Divider(),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      '$safeUserName — Emotion Diary Exported ${_formatDate(DateTime.now(), months)}',
-                      style: const pw.TextStyle(
-                        fontSize: 9,
-                        color: PdfColors.grey400,
-                      ),
-                    ),
-                    pw.Text(
-                      'Page ${ctx.pageNumber}',
-                      style: const pw.TextStyle(
-                        fontSize: 9,
-                        color: PdfColors.grey400,
-                      ),
-                    ),
-                  ],
-                ),
+                _pdfFooter(ctx),
               ],
             ),
           ),
@@ -507,17 +471,24 @@ class PdfExportService {
         pageFormat: PdfPageFormat.a4,
         build: (pw.Context ctx) => pw.Padding(
           padding: const pw.EdgeInsets.all(40),
-          child: pw.Center(
-            child: pw.Text(
-              'Disclaimer: This report is generated for self-reflection purposes only. '
-              'It is not a medical diagnosis and should not replace advice from a qualified mental health professional.',
-              textAlign: pw.TextAlign.center,
-              style: const pw.TextStyle(
-                fontSize: 12,
-                color: PdfColors.grey700,
-                lineSpacing: 2,
+          child: pw.Column(
+            children: [
+              pw.Expanded(
+                child: pw.Center(
+                  child: pw.Text(
+                    'Disclaimer: This report is generated for self-reflection purposes only. '
+                    'It is not a medical diagnosis and should not replace advice from a qualified mental health professional.',
+                    textAlign: pw.TextAlign.center,
+                    style: const pw.TextStyle(
+                      fontSize: 12,
+                      color: PdfColors.grey700,
+                      lineSpacing: 2,
+                    ),
+                  ),
+                ),
               ),
-            ),
+              _pdfFooter(ctx),
+            ],
           ),
         ),
       ),
@@ -530,6 +501,38 @@ class PdfExportService {
     await file.writeAsBytes(await pdf.save());
 
     return file.path;
+  }
+
+  static pw.Widget _pdfFooter(pw.Context ctx, {bool isDark = false}) {
+    final lineColor = isDark ? PdfColors.teal500 : PdfColors.grey300;
+    final textColor = isDark ? PdfColors.teal100 : PdfColors.grey500;
+
+    return pw.Column(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.Divider(color: lineColor),
+        pw.SizedBox(height: 4),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'Emotion Diary',
+              style: pw.TextStyle(
+                fontSize: 9,
+                color: textColor,
+              ),
+            ),
+            pw.Text(
+              'Page ${ctx.pageNumber}',
+              style: pw.TextStyle(
+                fontSize: 9,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   static pw.Widget _pdfSectionHeader(String title) => pw.Column(

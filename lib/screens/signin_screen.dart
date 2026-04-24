@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../utils/transitions.dart';
 import '../services/auth_service.dart';
 import '../providers/diary_provider.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import 'welcome_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -29,6 +31,13 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
+  void _goBackToWelcome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      fadeScaleRoute(const WelcomeScreen()),
+      (route) => false,
+    );
+  }
+
   Future<void> _signIn() async {
     final email = _emailCtrl.text.trim();
     final password = _passCtrl.text.trim();
@@ -43,7 +52,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await _authService.signIn(email, password);
 
-      // ❌ IMPORTANT: DO NOT migrate here
+      // IMPORTANT: DO NOT migrate here
       // await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
 
       if (!mounted) return;
@@ -108,79 +117,85 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return WillPopScope(
+      onWillPop: () async {
+        _goBackToWelcome();
+        return false;
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          onPressed: () => Navigator.pop(context),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            onPressed: _goBackToWelcome,
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              const Text(
-                'Welcome Back',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Sign in to continue your progress',
-                style: TextStyle(fontSize: 14, color: Color(0xFF888780)),
-              ),
-              const SizedBox(height: 40),
-
-              _label('EMAIL ADDRESS'),
-              const SizedBox(height: 8),
-              _inputField(
-                controller: _emailCtrl,
-                hint: 'yourname@email.com',
-                icon: Icons.email_outlined,
-                keyboardType: TextInputType.emailAddress,
-              ),
-
-              const SizedBox(height: 20),
-              _label('SECURE PASSWORD'),
-              const SizedBox(height: 8),
-              _inputField(
-                controller: _passCtrl,
-                hint: '••••••••',
-                icon: Icons.lock_outlined,
-                obscure: _obscure,
-                suffix: IconButton(
-                  icon: Icon(
-                    _obscure
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    size: 18,
-                    color: const Color(0xFF888780),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                const Text(
+                  'Welcome Back',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1A1A2E),
                   ),
-                  onPressed: () => setState(() => _obscure = !_obscure),
                 ),
-              ),
-
-              const SizedBox(height: 32),
-
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signIn,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Sign In'),
+                const SizedBox(height: 6),
+                const Text(
+                  'Sign in to continue your progress',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF888780)),
                 ),
-              ),
-            ],
+                const SizedBox(height: 40),
+
+                _label('EMAIL ADDRESS'),
+                const SizedBox(height: 8),
+                _inputField(
+                  controller: _emailCtrl,
+                  hint: 'yourname@email.com',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+
+                const SizedBox(height: 20),
+                _label('SECURE PASSWORD'),
+                const SizedBox(height: 8),
+                _inputField(
+                  controller: _passCtrl,
+                  hint: '••••••••',
+                  icon: Icons.lock_outlined,
+                  obscure: _obscure,
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      color: const Color(0xFF888780),
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _signIn,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text('Sign In'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
