@@ -459,18 +459,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return '$hour:$minute $period';
   }
 
-  double _averageMood(List entries) {
-    if (entries.isEmpty) return 0;
-    final total = entries.fold<int>(0, (sum, e) => sum + e.mood as int);
-    return total / entries.length;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<DiaryProvider>();
-    final entries = provider.entries;
-    final avgMood = _averageMood(entries);
-    final weekCount = provider.last7Days.length;
 
     final isGuest = _isGuest;
 
@@ -490,29 +480,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 _profileHeader(),
                 const SizedBox(height: 20),
-
-                Row(
-                  children: [
-                    _StatCard(
-                      label: 'Entries',
-                      value: entries.length.toString(),
-                      icon: Icons.book_outlined,
-                    ),
-                    const SizedBox(width: 10),
-                    _StatCard(
-                      label: 'Avg Mood',
-                      value: entries.isEmpty ? '-' : avgMood.toStringAsFixed(1),
-                      icon: Icons.mood_outlined,
-                    ),
-                    const SizedBox(width: 10),
-                    _StatCard(
-                      label: 'This Week',
-                      value: weekCount.toString(),
-                      icon: Icons.calendar_month_outlined,
-                    ),
-                  ],
-                ),
-
                 const SizedBox(height: 24),
 
                 _sectionTitle('Account'),
@@ -747,54 +714,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: 92,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: const Color(0xFF1D9E75), size: 22),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A2E),
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Color(0xFF888780),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _SwitchTile extends StatelessWidget {
   final IconData icon;
