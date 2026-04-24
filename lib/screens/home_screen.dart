@@ -160,15 +160,15 @@ class _InsightWrapper extends StatelessWidget {
                 ),
                 Center(
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 28),
-                    padding: const EdgeInsets.all(22),
+                    margin: const EdgeInsets.symmetric(horizontal: 42),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.12),
-                          blurRadius: 20,
+                          blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
                       ],
@@ -177,8 +177,8 @@ class _InsightWrapper extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 58,
-                          height: 58,
+                          width: 46,
+                          height: 46,
                           decoration: const BoxDecoration(
                             color: Color(0xFFE1F5EE),
                             shape: BoxShape.circle,
@@ -186,29 +186,29 @@ class _InsightWrapper extends StatelessWidget {
                           child: const Icon(
                             Icons.lock_outline,
                             color: Color(0xFF1D9E75),
-                            size: 30,
+                            size: 24,
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         const Text(
                           'Unlock Insights',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF1A1A2E),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         const Text(
                           'Register an account to view your emotional insights, mood trends, and AI summary.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 13,
-                            height: 1.5,
+                            fontSize: 12,
+                            height: 1.45,
                             color: Color(0xFF888780),
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -221,7 +221,7 @@ class _InsightWrapper extends StatelessWidget {
                               backgroundColor: const Color(0xFF1D9E75),
                               foregroundColor: Colors.white,
                               elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              padding: const EdgeInsets.symmetric(vertical: 11),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -232,12 +232,12 @@ class _InsightWrapper extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         const Text(
                           'Guest users can still log moods and view calendar history.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             color: Color(0xFFB4B2A9),
                           ),
                         ),

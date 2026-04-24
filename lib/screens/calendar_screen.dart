@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/transitions.dart';
 import 'package:provider/provider.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'mood_detail_screen.dart';
-import 'log_mood_screen.dart'; // 导入记录页
+import 'log_mood_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -27,22 +28,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final provider = context.watch<DiaryProvider>();
     final entries = provider.entries;
     final monthName = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
     ][_focusedMonth.month - 1];
 
     final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
     final lastDay = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
     final startOffset = firstDay.weekday % 7;
 
-    final monthEntries = entries.where((e) =>
-        e.createdAt.year == _focusedMonth.year &&
-        e.createdAt.month == _focusedMonth.month).toList()
+    final monthEntries = entries
+        .where((e) =>
+            e.createdAt.year == _focusedMonth.year &&
+            e.createdAt.month == _focusedMonth.month)
+        .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(title: const Text('Calendar'), backgroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('Calendar'),
+        backgroundColor: Colors.white,
+      ),
       body: Column(
         children: [
           Container(
@@ -54,37 +70,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                        icon: const Icon(Icons.chevron_left),
-                        onPressed: _prevMonth),
-                    Text('$monthName ${_focusedMonth.year}',
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1A2E))),
+                      icon: const Icon(Icons.chevron_left),
+                      onPressed: _prevMonth,
+                    ),
+                    Text(
+                      '$monthName ${_focusedMonth.year}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
                     IconButton(
-                        icon: const Icon(Icons.chevron_right),
-                        onPressed: _nextMonth),
+                      icon: const Icon(Icons.chevron_right),
+                      onPressed: _nextMonth,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Row(
-                  children: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-                      .map((d) => Expanded(
-                            child: Center(
-                              child: Text(d,
-                                  style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFFB4B2A9))),
+                  children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                      .map(
+                        (d) => Expanded(
+                          child: Center(
+                            child: Text(
+                              d,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFB4B2A9),
+                              ),
                             ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
                 const SizedBox(height: 8),
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 7,
                     childAspectRatio: 1,
                     mainAxisSpacing: 4,
@@ -93,27 +120,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   itemCount: startOffset + lastDay.day,
                   itemBuilder: (ctx, idx) {
                     if (idx < startOffset) return const SizedBox();
+
                     final dayNum = idx - startOffset + 1;
-                    final date = DateTime(_focusedMonth.year, _focusedMonth.month, dayNum);
+                    final date = DateTime(
+                      _focusedMonth.year,
+                      _focusedMonth.month,
+                      dayNum,
+                    );
+
                     final isToday = _isToday(date);
                     DiaryEntry? entry;
+
                     try {
                       entry = monthEntries.firstWhere(
-                          (e) => e.createdAt.day == dayNum);
+                        (e) => e.createdAt.day == dayNum,
+                      );
                     } catch (_) {}
 
                     return GestureDetector(
                       onTap: () {
                         if (entry != null) {
-                          // 如果已有记录，跳转到详情页
-                          Navigator.of(ctx).push(slideRightRoute(MoodDetailScreen(entry: entry!)));
+                          Navigator.of(ctx).push(
+                            slideRightRoute(
+                              MoodDetailScreen(entry: entry!),
+                            ),
+                          );
                         } else {
-                          // 如果没有记录，跳转到记录页，并传入该格子的日期
-                          Navigator.of(ctx).push(slideRightRoute(LogMoodScreen(customDate: date)));
+                          Navigator.of(ctx).push(
+                            slideRightRoute(
+                              LogMoodScreen(customDate: date),
+                            ),
+                          );
                         }
                       },
                       child: _CalendarDay(
-                          day: dayNum, entry: entry, isToday: isToday),
+                        day: dayNum,
+                        entry: entry,
+                        isToday: isToday,
+                      ),
                     );
                   },
                 ),
@@ -121,12 +165,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
 
-          // Mood legend
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+              children: const [
                 _LegendItem(emoji: '😣', label: 'Awful'),
                 _LegendItem(emoji: '😞', label: 'Bad'),
                 _LegendItem(emoji: '😐', label: 'Okay'),
@@ -136,7 +179,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
 
-          // History list
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(20),
@@ -144,14 +186,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('History Post and Notes',
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A1A2E))),
-                    Text('${monthEntries.length} entries',
-                        style: const TextStyle(
-                            fontSize: 12, color: Color(0xFF888780))),
+                    const Text(
+                      'History Post and Notes',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    Text(
+                      '${monthEntries.length} entries',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF888780),
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),
@@ -163,18 +212,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         children: [
                           Text('📭', style: TextStyle(fontSize: 40)),
                           SizedBox(height: 8),
-                          Text('No entries this month',
-                              style: TextStyle(
-                                  fontSize: 13, color: Color(0xFF888780))),
+                          Text(
+                            'No entries this month',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF888780),
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   )
                 else
-                  ...monthEntries.map((e) => GestureDetector(
-                        onTap: () => Navigator.of(context).push(slideRightRoute(MoodDetailScreen(entry: e))),
-                        child: _HistoryTile(entry: e),
-                      )),
+                  ...monthEntries.map(
+                    (e) => GestureDetector(
+                      onTap: () => Navigator.of(context).push(
+                        slideRightRoute(
+                          MoodDetailScreen(entry: e),
+                        ),
+                      ),
+                      child: _HistoryTile(entry: e),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -195,7 +254,12 @@ class _CalendarDay extends StatelessWidget {
   final int day;
   final DiaryEntry? entry;
   final bool isToday;
-  const _CalendarDay({required this.day, required this.entry, required this.isToday});
+
+  const _CalendarDay({
+    required this.day,
+    required this.entry,
+    required this.isToday,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -213,15 +277,20 @@ class _CalendarDay extends StatelessWidget {
       ),
       child: Center(
         child: entry != null
-            ? Text(entry!.moodEmoji, style: const TextStyle(fontSize: 16))
-            : Text(day.toString(),
+            ? Text(
+                entry!.moodEmoji,
+                style: const TextStyle(fontSize: 16),
+              )
+            : Text(
+                day.toString(),
                 style: TextStyle(
-                    fontSize: 11,
-                    color: isToday
-                        ? const Color(0xFF1D9E75)
-                        : const Color(0xFF1A1A2E),
-                    fontWeight:
-                        isToday ? FontWeight.w700 : FontWeight.w400)),
+                  fontSize: 11,
+                  color: isToday
+                      ? const Color(0xFF1D9E75)
+                      : const Color(0xFF1A1A2E),
+                  fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
       ),
     );
   }
@@ -230,7 +299,11 @@ class _CalendarDay extends StatelessWidget {
 class _LegendItem extends StatelessWidget {
   final String emoji;
   final String label;
-  const _LegendItem({required this.emoji, required this.label});
+
+  const _LegendItem({
+    required this.emoji,
+    required this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -240,9 +313,13 @@ class _LegendItem extends StatelessWidget {
         children: [
           Text(emoji, style: const TextStyle(fontSize: 12)),
           const SizedBox(width: 2),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 9, color: Color(0xFF888780))),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              color: Color(0xFF888780),
+            ),
+          ),
         ],
       ),
     );
@@ -251,11 +328,28 @@ class _LegendItem extends StatelessWidget {
 
 class _HistoryTile extends StatelessWidget {
   final DiaryEntry entry;
+
   const _HistoryTile({required this.entry});
 
   @override
   Widget build(BuildContext context) {
-    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final isGuest = FirebaseAuth.instance.currentUser == null;
+
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -275,8 +369,11 @@ class _HistoryTile extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Center(
-                child: Text(entry.moodEmoji,
-                    style: const TextStyle(fontSize: 18))),
+              child: Text(
+                entry.moodEmoji,
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -287,48 +384,67 @@ class _HistoryTile extends StatelessWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: entry.moodColor.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(entry.moodLabel,
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: entry.moodColor,
-                              fontWeight: FontWeight.w600)),
+                      child: Text(
+                        entry.moodLabel,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: entry.moodColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       '${months[entry.createdAt.month - 1]} ${entry.createdAt.day}',
                       style: const TextStyle(
-                          fontSize: 10, color: Color(0xFFB4B2A9)),
+                        fontSize: 10,
+                        color: Color(0xFFB4B2A9),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(entry.entryText,
-                    maxLines: 2,
+                Text(
+                  entry.entryText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF444441),
+                    height: 1.5,
+                  ),
+                ),
+
+                // User only can see AI preview.
+                // Guest will not see this line.
+                if (entry.aiReflection != null && !isGuest) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'AI: ${entry.aiReflection}',
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF444441),
-                        height: 1.5)),
-                if (entry.aiReflection != null) ...[
-                  const SizedBox(height: 4),
-                  Text('AI: ${entry.aiReflection}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF1D9E75),
-                          fontStyle: FontStyle.italic)),
+                      fontSize: 11,
+                      color: Color(0xFF1D9E75),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
-          const Icon(Icons.chevron_right,
-              size: 16, color: Color(0xFFB4B2A9)),
+          const Icon(
+            Icons.chevron_right,
+            size: 16,
+            color: Color(0xFFB4B2A9),
+          ),
         ],
       ),
     );

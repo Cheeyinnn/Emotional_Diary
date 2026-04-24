@@ -1,8 +1,14 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/diary_entry.dart';
 import '../providers/diary_provider.dart';
+import '../utils/transitions.dart';
 import 'log_mood_screen.dart';
+import 'register_screen.dart';
 
 class MoodDetailScreen extends StatefulWidget {
   final DiaryEntry entry;
@@ -23,15 +29,19 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
   void initState() {
     super.initState();
     _entry = widget.entry;
+
     _slideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
+
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.08),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOut));
+
     _fadeAnim = CurvedAnimation(parent: _slideCtrl, curve: Curves.easeIn);
+
     _slideCtrl.forward();
   }
 
@@ -91,8 +101,33 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
     }
   }
 
+  bool get _isGuest => FirebaseAuth.instance.currentUser == null;
+
+  bool get _hasValidation =>
+      _entry.validation != null && _entry.validation!.trim().isNotEmpty;
+
+  bool get _hasAiReflection =>
+      _entry.aiReflection != null && _entry.aiReflection!.trim().isNotEmpty;
+
+  bool get _hasPatternInsight =>
+      _entry.patternInsight != null && _entry.patternInsight!.trim().isNotEmpty;
+
+  bool get _hasActivitySuggestion =>
+      _entry.activitySuggestion != null &&
+      _entry.activitySuggestion!.trim().isNotEmpty;
+
+  bool get _hasAnyLockedAiContent =>
+      _hasValidation ||
+      _hasAiReflection ||
+      _hasPatternInsight ||
+      _hasActivitySuggestion ||
+      _entry.emotionIntensity != null ||
+      (_entry.triggerKeyword != null && _entry.triggerKeyword!.trim().isNotEmpty);
+
   @override
   Widget build(BuildContext context) {
+    final isGuest = _isGuest;
+
     final months = [
       'January',
       'February',
@@ -110,6 +145,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
 
     final dateStr =
         '${months[_entry.createdAt.month - 1]} ${_entry.createdAt.day}, ${_entry.createdAt.year}';
+
     final timeStr =
         '${_entry.createdAt.hour.toString().padLeft(2, '0')}:${_entry.createdAt.minute.toString().padLeft(2, '0')}';
 
@@ -140,7 +176,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              _heroCard(timeStr),
+              _heroCard(timeStr, hideAiDetails: isGuest),
               const SizedBox(height: 16),
 
               _card(
@@ -177,229 +213,229 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
                   ],
                 ),
               ),
+
               const SizedBox(height: 12),
 
-              if (_entry.validation != null && _entry.validation!.trim().isNotEmpty)
-                _card(
-                  accent: const Color(0xFFFAF7EC),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.favorite_outline,
-                            size: 18,
-                            color: Color(0xFFBA7517),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Validation',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF633806),
+              if (isGuest && _hasAnyLockedAiContent)
+                _guestLockedInsightCard(context),
+
+              if (!isGuest) ...[
+                if (_hasValidation)
+                  _card(
+                    accent: const Color(0xFFFAF7EC),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.favorite_outline,
+                              size: 18,
+                              color: Color(0xFFBA7517),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _entry.validation!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF633806),
-                          height: 1.7,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              if (_entry.validation != null && _entry.validation!.trim().isNotEmpty)
-                const SizedBox(height: 12),
-
-              if (_entry.aiReflection != null && _entry.aiReflection!.trim().isNotEmpty)
-                _card(
-                  accent: const Color(0xFFE1F5EE),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.auto_awesome,
-                            size: 18,
-                            color: Color(0xFF1D9E75),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'AI Reflection',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF085041),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _entry.aiReflection!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF0F6E56),
-                          height: 1.7,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                _card(
-                  child: const Row(
-                    children: [
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 1.5,
-                          color: Color(0xFF1D9E75),
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'AI analysis in progress...',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFFB4B2A9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              if (_entry.aiReflection != null && _entry.aiReflection!.trim().isNotEmpty)
-                const SizedBox(height: 12),
-
-              if (_entry.patternInsight != null &&
-                  _entry.patternInsight!.trim().isNotEmpty)
-                _card(
-                  accent: const Color(0xFFEEEDFE),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.insights_outlined,
-                            size: 18,
-                            color: Color(0xFF534AB7),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Pattern Insight',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF3D348B),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _entry.patternInsight!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF3D348B),
-                          height: 1.7,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              if (_entry.patternInsight != null &&
-                  _entry.patternInsight!.trim().isNotEmpty)
-                const SizedBox(height: 12),
-
-              if (_entry.activitySuggestion != null &&
-                  _entry.activitySuggestion!.trim().isNotEmpty)
-                _card(
-                  accent: const Color(0xFFEFF8F3),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(
-                            Icons.spa_outlined,
-                            size: 18,
-                            color: Color(0xFF1D9E75),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Suggested Activity',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF085041),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _entry.activitySuggestion!,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF085041),
+                            SizedBox(width: 8),
+                            Text(
+                              'Validation',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF633806),
                               ),
                             ),
-                          ),
-                          if (_entry.activityDuration != null &&
-                              _entry.activityDuration!.trim().isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                _entry.activityDuration!,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1D9E75),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (_entry.activitySteps != null &&
-                          _entry.activitySteps!.trim().isNotEmpty) ...[
+                          ],
+                        ),
                         const SizedBox(height: 12),
                         Text(
-                          _entry.activitySteps!,
+                          _entry.validation!,
                           style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF444441),
-                            height: 1.6,
+                            fontSize: 14,
+                            color: Color(0xFF633806),
+                            height: 1.7,
                           ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+
+                if (_hasValidation) const SizedBox(height: 12),
+
+                if (_hasAiReflection)
+                  _card(
+                    accent: const Color(0xFFE1F5EE),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.auto_awesome,
+                              size: 18,
+                              color: Color(0xFF1D9E75),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'AI Reflection',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF085041),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _entry.aiReflection!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF0F6E56),
+                            height: 1.7,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  _card(
+                    child: const Row(
+                      children: [
+                        SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: Color(0xFF1D9E75),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'AI analysis in progress...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFFB4B2A9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                if (_hasAiReflection) const SizedBox(height: 12),
+
+                if (_hasPatternInsight)
+                  _card(
+                    accent: const Color(0xFFEEEDFE),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.insights_outlined,
+                              size: 18,
+                              color: Color(0xFF534AB7),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Pattern Insight',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF3D348B),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _entry.patternInsight!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF3D348B),
+                            height: 1.7,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                if (_hasPatternInsight) const SizedBox(height: 12),
+
+                if (_hasActivitySuggestion)
+                  _card(
+                    accent: const Color(0xFFEFF8F3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              Icons.spa_outlined,
+                              size: 18,
+                              color: Color(0xFF1D9E75),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Suggested Activity',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF085041),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _entry.activitySuggestion!,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF085041),
+                                ),
+                              ),
+                            ),
+                            if (_entry.activityDuration != null &&
+                                _entry.activityDuration!.trim().isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  _entry.activityDuration!,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF1D9E75),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (_entry.activitySteps != null &&
+                            _entry.activitySteps!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            _entry.activitySteps!,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF444441),
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+              ],
 
               const SizedBox(height: 24),
 
@@ -430,7 +466,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
     );
   }
 
-  Widget _heroCard(String timeStr) {
+  Widget _heroCard(String timeStr, {required bool hideAiDetails}) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -467,7 +503,8 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
               color: Color(0xFF888780),
             ),
           ),
-          if (_entry.emotionIntensity != null) ...[
+
+          if (!hideAiDetails && _entry.emotionIntensity != null) ...[
             const SizedBox(height: 16),
             Row(
               children: [
@@ -500,7 +537,9 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
               ),
             ),
           ],
-          if (_entry.triggerKeyword != null &&
+
+          if (!hideAiDetails &&
+              _entry.triggerKeyword != null &&
               _entry.triggerKeyword!.trim().isNotEmpty) ...[
             const SizedBox(height: 14),
             Container(
@@ -533,6 +572,197 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _guestLockedInsightCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 210,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE0E0E0),
+          width: 0.5,
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Column(
+              children: [
+                Expanded(
+                  child: Container(
+                    color: const Color(0xFFFAF7EC),
+                    padding: const EdgeInsets.all(16),
+                    alignment: Alignment.topLeft,
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.favorite_outline,
+                          size: 18,
+                          color: Color(0xFFBA7517),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Validation',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF633806),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    color: const Color(0xFFE1F5EE),
+                    padding: const EdgeInsets.all(16),
+                    alignment: Alignment.topLeft,
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome,
+                          size: 18,
+                          color: Color(0xFF1D9E75),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'AI Reflection',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF085041),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    color: const Color(0xFFEFF8F3),
+                    padding: const EdgeInsets.all(16),
+                    alignment: Alignment.topLeft,
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.spa_outlined,
+                          size: 18,
+                          color: Color(0xFF1D9E75),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Suggested Activity',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF085041),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5.5, sigmaY: 5.5),
+              child: Container(
+                color: Colors.black.withOpacity(0.22),
+              ),
+            ),
+          ),
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 36),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE1F5EE),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.lock_outline,
+                      color: Color(0xFF1D9E75),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Unlock Full Insight',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'Register to view validation, AI reflection, and suggested activity.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      height: 1.4,
+                      color: Color(0xFF888780),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 38,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          fadeRoute(const RegisterScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D9E75),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                      ),
+                      child: const Text(
+                        'Register Now',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
