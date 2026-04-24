@@ -32,6 +32,8 @@ class DiaryProvider extends ChangeNotifier {
   bool get isLoadingWeekly => _isLoadingWeekly;
   String get searchQuery => _searchQuery;
   int? get filterMood => _filterMood;
+  int get positiveStreak => calculatePositiveStreak();
+  int get negativeStreak => calculateNegativeStreak();
 
   DiaryProvider() {
     _authSubscription = _auth.authStateChanges().listen((_) async {
@@ -53,6 +55,50 @@ class DiaryProvider extends ChangeNotifier {
 
   CollectionReference<Map<String, dynamic>> _userEntriesRef(String uid) {
     return _firestore.collection('users').doc(uid).collection('diary_entries');
+  }
+
+  int calculatePositiveStreak() {
+    final today = DateTime.now();
+    int streak = 0;
+
+    for (int i = 0; i < 7; i++) {
+      final date = today.subtract(Duration(days: i));
+      final mood = getMoodForDate(date);
+
+      if (mood == null) {
+        continue; // ❗关键：跳过没写日记的日子
+      }
+
+      if (mood >= 3) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  int calculateNegativeStreak() {
+    final today = DateTime.now();
+    int streak = 0;
+
+    for (int i = 0; i < 7; i++) {
+      final date = today.subtract(Duration(days: i));
+      final mood = getMoodForDate(date);
+
+      if (mood == null) {
+        continue;
+      }
+
+      if (mood <= 2) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
   }
 
   List<DiaryEntry> get filteredEntries {
@@ -92,9 +138,22 @@ class DiaryProvider extends ChangeNotifier {
   }
 
   List<DiaryEntry> get last7Days {
-    final cutoff = DateTime.now().subtract(const Duration(days: 7));
-    return _entries.where((e) => e.createdAt.isAfter(cutoff)).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final now = DateTime.now();
+
+    // 👉 把时间砍掉（只留日期）
+    final today = DateTime(now.year, now.month, now.day);
+
+    final start = today.subtract(const Duration(days: 6));
+
+    return _entries.where((e) {
+      final d = DateTime(
+        e.createdAt.year,
+        e.createdAt.month,
+        e.createdAt.day,
+      );
+
+      return !d.isBefore(start) && !d.isAfter(today);
+    }).toList();
   }
 
   DiaryEntry? get todayEntry {
@@ -110,6 +169,38 @@ class DiaryProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  bool _isNegativeMood(int? mood) {
+    if (mood == null) return false;
+    return mood <= 2; // sad / angry / anxious
+  }
+
+
+  bool isNegativeEntry(DiaryEntry e) {
+    final mood = e.moodLabel.toLowerCase();
+
+    return mood == 'sad' ||
+        mood == 'angry' ||
+        mood == 'anxious' ||
+        mood == 'stressed';
+  }
+
+  bool get has3DaySadStreak {
+    final now = DateTime.now();
+
+    final today = getMoodForDate(now);
+    final yesterday = getMoodForDate(now.subtract(const Duration(days: 1)));
+    final dayBefore = getMoodForDate(now.subtract(const Duration(days: 2)));
+
+    return _isNegativeMood(today) &&
+          _isNegativeMood(yesterday) &&
+          _isNegativeMood(dayBefore);
+  }
+
+  String _dateKey(DateTime dt) {
+    return "${dt.year}-${dt.month}-${dt.day}";
+  }
+
 
   // ── FIX 1: trigger weekly summary based on TIME, not entry count ──────────
   // Shows weekly summary if:
@@ -135,7 +226,13 @@ class DiaryProvider extends ChangeNotifier {
   // ── FIX 3: hasRiskFlag now works per-day, not per-entry ───────────────────
   // Prevents false positives from a user writing multiple entries in one day.
   bool get hasRiskFlag {
-    final recentMoods = _getRecentDailyMoods(5);
+    final recentMoods = last7Days
+    .map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day))
+    .toSet()
+    .map((date) => getMoodForDate(date))
+    .whereType<int>()
+    .toList();
+
     if (recentMoods.length < 3) return false;
     final lowCount = recentMoods.where((m) => m <= 1).length;
     return lowCount >= 3;
@@ -471,18 +568,42 @@ class DiaryProvider extends ChangeNotifier {
   }
 
   int? getMoodForDate(DateTime date) {
-    try {
-      // ── FIX 3: if multiple entries exist for the same day,
-      //           use the most recent one (sorted descending already)
-      final entry = _entries.firstWhere(
-        (e) =>
-            e.createdAt.year == date.year &&
-            e.createdAt.month == date.month &&
-            e.createdAt.day == date.day,
-      );
-      return entry.mood;
-    } catch (_) {
-      return null;
-    }
+    final sameDayEntries = _entries.where((e) =>
+        e.createdAt.year == date.year &&
+        e.createdAt.month == date.month &&
+        e.createdAt.day == date.day);
+
+    if (sameDayEntries.isEmpty) return null;
+
+    // ❗ take latest entry
+    final latest = sameDayEntries.reduce(
+      (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
+    );
+
+    return latest.mood;
   }
+
+  int get positiveCount {
+    final days = last7Days
+        .map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day))
+        .toSet();
+
+    return days.where((date) {
+      final mood = getMoodForDate(date);
+      return mood != null && mood >= 3;
+    }).length;
+  }
+
+  int get negativeCount {
+    final days = last7Days
+        .map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day))
+        .toSet();
+
+    return days.where((date) {
+      final mood = getMoodForDate(date);
+      return mood != null && mood <= 2;
+    }).length;
+  }
+
+
 }
