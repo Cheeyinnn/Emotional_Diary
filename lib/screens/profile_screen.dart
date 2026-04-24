@@ -233,50 +233,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _exportPdf() async {
-    final provider = context.read<DiaryProvider>();
+  if (_isGuest) {
+    _showSnackBar(
+      'Please sign in to export PDF report.',
+      isError: true,
+    );
+    return;
+  }
 
-    if (provider.entries.isEmpty) {
-      _showSnackBar('No entries to export yet.');
-      return;
-    }
+  final provider = context.read<DiaryProvider>();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(color: Color(0xFF1D9E75)),
-            SizedBox(width: 16),
-            Text('Generating PDF...'),
-          ],
-        ),
+  if (provider.entries.isEmpty) {
+    _showSnackBar('No entries to export yet.');
+    return;
+  }
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const AlertDialog(
+      content: Row(
+        children: [
+          CircularProgressIndicator(color: Color(0xFF1D9E75)),
+          SizedBox(width: 16),
+          Text('Generating PDF...'),
+        ],
       ),
+    ),
+  );
+
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+
+    final path = await PdfExportService.exportDiary(
+      provider.entries,
+      userName: user?.displayName,
+      userEmail: user?.email,
     );
 
-    try {
-      final user = FirebaseAuth.instance.currentUser;
+    if (!mounted) return;
+    Navigator.pop(context);
 
-      final path = await PdfExportService.exportDiary(
-        provider.entries,
-        userName: user?.displayName,
-        userEmail: user?.email,
-      );
-
-      if (!mounted) return;
-      Navigator.pop(context);
-
-      await Share.shareXFiles(
-        [XFile(path)],
-        subject: 'My Emotion Diary Export',
-        text: 'Here is my emotion diary export from the AI Emotion Diary app.',
-      );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.pop(context);
-      _showSnackBar('Export failed: $e', isError: true);
-    }
+    await Share.shareXFiles(
+      [XFile(path)],
+      subject: 'My Emotion Diary Export',
+      text: 'Here is my emotion diary export from the AI Emotion Diary app.',
+    );
+  } catch (e) {
+    if (!mounted) return;
+    Navigator.pop(context);
+    _showSnackBar('Export failed: $e', isError: true);
   }
+}
 
   Future<void> _goToWelcome() async {
     Navigator.of(context).pushAndRemoveUntil(
@@ -426,18 +434,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
+  void _showSnackBar(
+  String message, {
+  bool isError = false,
+  Duration duration = const Duration(seconds: 3),
+}) {
+  if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor:
-            isError ? const Color(0xFFE24B4A) : const Color(0xFF1D9E75),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      duration: duration,
+      backgroundColor:
+          isError ? const Color(0xFFE24B4A) : const Color(0xFF1D9E75),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+}
 
   String _formatTime(TimeOfDay time) {
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
@@ -531,7 +544,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _TapTile(
                         icon: Icons.picture_as_pdf_outlined,
-                        label: 'Export Diary as PDF',
+                        label: isGuest ? 'Export PDF Report (Sign in required)' : 'Export Diary as PDF',
+                        textColor: isGuest ? const Color(0xFFB4B2A9) : null,
                         onTap: _exportPdf,
                       ),
                       _divider(),
