@@ -261,18 +261,24 @@ class DiaryProvider extends ChangeNotifier {
     }
   }
 
+  // ── 修改后的 addEntry，支持可选的 createdAt 参数 ──────────
   Future<Map<String, dynamic>> addEntry({
     required String entryText,
     required int mood,
+    DateTime? createdAt, // 新增参数
   }) async {
+    final finalDate = createdAt ?? DateTime.now(); // 如果传了就用传的，没传就用现在的时间
+    
     final entry = DiaryEntry(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       entryText: entryText,
       mood: mood,
-      createdAt: DateTime.now(),
+      createdAt: finalDate, // 使用处理后的日期
     );
 
-    _entries.insert(0, entry);
+    // 将新条目添加到列表并重新排序，确保补录的日期出现在日历正确的位置
+    _entries.add(entry);
+    _entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final user = _auth.currentUser;
 
