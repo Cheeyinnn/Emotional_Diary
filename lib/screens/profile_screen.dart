@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../providers/diary_provider.dart';
 import '../services/pdf_export_service.dart';
 import '../utils/transitions.dart';
-import 'signin_screen.dart';
+import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,13 +26,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _dailyReminder = true;
   bool _riskAlerts = true;
-  bool _weeklyReport = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
 
   String _wellnessGoal = 'Reduce Stress';
 
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
+
+  bool get _isGuest => FirebaseAuth.instance.currentUser == null;
 
   @override
   void initState() {
@@ -101,7 +102,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _dailyReminder = prefs.getBool('daily_reminder') ?? true;
       _riskAlerts = prefs.getBool('risk_alerts') ?? true;
-      _weeklyReport = prefs.getBool('weekly_report') ?? true;
       _wellnessGoal = prefs.getString('wellness_goal') ?? 'Reduce Stress';
 
       final hour = prefs.getInt('reminder_hour') ?? 21;
@@ -115,7 +115,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     await prefs.setBool('daily_reminder', _dailyReminder);
     await prefs.setBool('risk_alerts', _riskAlerts);
-    await prefs.setBool('weekly_report', _weeklyReport);
     await prefs.setString('wellness_goal', _wellnessGoal);
     await prefs.setInt('reminder_hour', _reminderTime.hour);
     await prefs.setInt('reminder_minute', _reminderTime.minute);
@@ -279,18 +278,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
-
-    if (!mounted) return;
-
+  Future<void> _goToWelcome() async {
     Navigator.of(context).pushAndRemoveUntil(
-      fadeScaleRoute(const SignInScreen()),
+      fadeScaleRoute(const WelcomeScreen()),
       (route) => false,
     );
   }
 
+  Future<void> _signOutOrSignIn() async {
+    if (_isGuest) {
+      await _goToWelcome();
+      return;
+    }
+
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    await _goToWelcome();
+  }
+
   void _showEditProfileDialog() {
+    if (_isGuest) {
+      _showSnackBar('Please sign in to edit your profile.', isError: true);
+      return;
+    }
+
     _nameCtrl.text = _name;
     _emailCtrl.text = _email;
 
@@ -446,6 +459,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final avgMood = _averageMood(entries);
     final weekCount = provider.last7Days.length;
 
+    final isGuest = _isGuest;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -537,16 +552,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           await _saveSettings();
                         },
                       ),
-                      _divider(),
-                      _SwitchTile(
-                        icon: Icons.insights_outlined,
-                        label: 'Weekly AI Report',
-                        value: _weeklyReport,
-                        onChanged: (v) async {
-                          setState(() => _weeklyReport = v);
-                          await _saveSettings();
-                        },
-                      ),
                     ],
                   ),
                 ),
@@ -583,10 +588,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 _card(
                   child: _TapTile(
-                    icon: Icons.logout,
-                    label: 'Sign Out',
-                    textColor: const Color(0xFFE24B4A),
-                    onTap: _signOut,
+                    icon: isGuest ? Icons.login : Icons.logout,
+                    label: isGuest ? 'Sign In' : 'Sign Out',
+                    textColor: isGuest
+                        ? const Color(0xFF1D9E75)
+                        : const Color(0xFFE24B4A),
+                    onTap: _signOutOrSignIn,
                   ),
                 ),
 
@@ -598,6 +605,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _profileHeader() {
     final initial = _name.isNotEmpty ? _name[0].toUpperCase() : 'G';
+    final isGuest = _isGuest;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -623,23 +631,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFAEEDA),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    size: 13,
-                    color: Color(0xFFBA7517),
+              if (!isGuest)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFAEEDA),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.edit,
+                      size: 13,
+                      color: Color(0xFFBA7517),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(width: 16),
@@ -671,9 +680,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Colors.white.withOpacity(0.18),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
-                    'Emotion Diary User',
-                    style: TextStyle(
+                  child: Text(
+                    isGuest ? 'Guest Mode' : 'Emotion Diary User',
+                    style: const TextStyle(
                       fontSize: 10,
                       color: Colors.white,
                       fontWeight: FontWeight.w600,

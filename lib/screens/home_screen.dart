@@ -40,79 +40,112 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      _HomeTab(refreshKey: _homeRefreshKey),
-      const CalendarScreen(),
-      const _InsightWrapper(),
-      const ProfileScreen(),
-    ];
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, authSnapshot) {
+        final user = authSnapshot.data;
+        final isGuest = user == null;
+        final authKey = user?.uid ?? 'guest';
 
-    return Scaffold(
-      body: IndexedStack(index: _selectedIndex, children: screens),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Color(0xFFE0E0E0), width: 0.5)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: (i) {
-            setState(() {
-              _selectedIndex = i;
+        final screens = [
+          _HomeTab(
+            key: ValueKey('home_$authKey$_homeRefreshKey'),
+            refreshKey: _homeRefreshKey,
+          ),
+          CalendarScreen(key: ValueKey('calendar_$authKey')),
+          _InsightWrapper(
+            key: ValueKey('insight_$authKey'),
+            isGuest: isGuest,
+          ),
+          ProfileScreen(key: ValueKey('profile_$authKey')),
+        ];
 
-              if (i == 0) {
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) return;
+
+            if (_selectedIndex != 0) {
+              setState(() {
+                _selectedIndex = 0;
                 _homeRefreshKey++;
-              }
-            });
+              });
+            }
           },
-          backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF1D9E75),
-          unselectedItemColor: const Color(0xFFB4B2A9),
-          selectedLabelStyle:
-              const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          type: BottomNavigationBarType.fixed,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: 'Home',
+          child: Scaffold(
+            body: IndexedStack(index: _selectedIndex, children: screens),
+            bottomNavigationBar: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: Color(0xFFE0E0E0), width: 0.5),
+                ),
+              ),
+              child: BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: (i) {
+                  setState(() {
+                    _selectedIndex = i;
+
+                    if (i == 0) {
+                      _homeRefreshKey++;
+                    }
+                  });
+                },
+                backgroundColor: Colors.white,
+                selectedItemColor: const Color(0xFF1D9E75),
+                unselectedItemColor: const Color(0xFFB4B2A9),
+                selectedLabelStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: const TextStyle(fontSize: 11),
+                type: BottomNavigationBarType.fixed,
+                elevation: 0,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home_outlined),
+                    activeIcon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.calendar_month_outlined),
+                    activeIcon: Icon(Icons.calendar_month),
+                    label: 'Calendar',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.insights_outlined),
+                    activeIcon: Icon(Icons.insights),
+                    label: 'Insights',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person_outline),
+                    activeIcon: Icon(Icons.person),
+                    label: 'Profile',
+                  ),
+                ],
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month_outlined),
-              activeIcon: Icon(Icons.calendar_month),
-              label: 'Calendar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.insights_outlined),
-              activeIcon: Icon(Icons.insights),
-              label: 'Insights',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _InsightWrapper extends StatelessWidget {
-  const _InsightWrapper();
+  final bool isGuest;
+
+  const _InsightWrapper({
+    super.key,
+    required this.isGuest,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final isGuest = user == null;
-
     return Stack(
       children: [
         const InsightScreen(),
-
         if (isGuest)
           Positioned.fill(
             child: Stack(
@@ -179,8 +212,8 @@ class _InsightWrapper extends StatelessWidget {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
+                            onPressed: () async {
+                              await Navigator.of(context).push(
                                 fadeRoute(const RegisterScreen()),
                               );
                             },
@@ -222,7 +255,7 @@ class _InsightWrapper extends StatelessWidget {
 
 class _HomeTab extends StatefulWidget {
   final int refreshKey;
-  const _HomeTab({required this.refreshKey});
+  const _HomeTab({super.key, required this.refreshKey});
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -284,8 +317,9 @@ class _HomeTabState extends State<_HomeTab> {
                       future: _getUserDoc(),
                       builder: (context, snapshot) {
                         final userName = _extractUserName(snapshot);
-                        final userInitial =
-                            userName.isNotEmpty ? userName[0].toUpperCase() : 'G';
+                        final userInitial = userName.isNotEmpty
+                            ? userName[0].toUpperCase()
+                            : 'G';
 
                         return Row(
                           children: [
@@ -377,7 +411,6 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
-
             if (hasRisk)
               SliverToBoxAdapter(
                 child: Padding(
@@ -422,7 +455,6 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
                 ),
               ),
-
             if (provider.todayEntry != null)
               SliverToBoxAdapter(
                 child: Padding(
@@ -483,7 +515,6 @@ class _HomeTabState extends State<_HomeTab> {
                   ),
                 ),
               ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -540,7 +571,6 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -573,7 +603,6 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -626,7 +655,6 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
-
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -695,7 +723,6 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
-
             if (last7.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
@@ -743,7 +770,6 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ],
-
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
