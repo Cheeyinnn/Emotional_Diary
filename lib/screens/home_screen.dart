@@ -50,7 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final screens = [
           _HomeTab(
             key: ValueKey('home_$authKey$_homeRefreshKey'),
-            refreshKey: _homeRefreshKey,
+            refreshKey: _homeRefreshKey,  
+            onNavigateToCalendar: () {
+              setState(() {
+                _selectedIndex = 1; // 3. Switches the active tab to Calendar
+              });
+            },
           ),
           CalendarScreen(key: ValueKey('calendar_$authKey')),
           _InsightWrapper(
@@ -255,7 +260,10 @@ class _InsightWrapper extends StatelessWidget {
 
 class _HomeTab extends StatefulWidget {
   final int refreshKey;
-  const _HomeTab({super.key, required this.refreshKey});
+  final VoidCallback onNavigateToCalendar;
+
+  const _HomeTab({super.key, required this.refreshKey, required this.onNavigateToCalendar,});
+  
 
   @override
   State<_HomeTab> createState() => _HomeTabState();
@@ -739,13 +747,13 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: widget.onNavigateToCalendar, // 4. Use the callback here
                         child: const Text(
-                          'See all',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF1D9E75),
-                          ),
+                         'See all',
+                         style: TextStyle(
+                         fontSize: 12,
+                         color: Color(0xFF1D9E75),
+                         ),
                         ),
                       ),
                     ],
