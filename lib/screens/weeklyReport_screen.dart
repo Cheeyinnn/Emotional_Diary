@@ -15,7 +15,7 @@ class WeeklyReportScreen extends StatefulWidget {
 class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
   
   @override
-  
+
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -124,17 +124,21 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     BuildContext context,
     Map<String, dynamic> summary,
     List<DiaryEntry> entries,
-  ) {
-    final trajectory =
-        summary['emotionalTrajectory'] as String? ?? 'fluctuating';
-    final riskFlag = summary['riskFlag'] as bool? ?? false;
-    final hiddenInsight = summary['hiddenInsight'] as String? ?? '';
-    final weeklySummary = summary['weeklySummary'] as String? ?? '';
-    final recurringTrigger = summary['recurringTrigger'] as String? ?? '';
-    final sourceOfNegativity = summary['sourceOfNegativity'] as String? ?? '';
-    final riskMessage = summary['riskMessage'] as String? ?? '';
-    final positiveStreak = summary['positiveStreak'] as int? ?? 0;
-    final negativeStreak = summary['negativeStreak'] as int? ?? 0;
+    ) {
+      final provider = context.watch<DiaryProvider>();
+
+      final trajectory =
+          summary['emotionalTrajectory'] as String? ?? 'fluctuating';
+
+      final riskFlag = summary['riskFlag'] as bool? ?? false;
+      final hiddenInsight = summary['hiddenInsight'] as String? ?? '';
+      final weeklySummary = summary['weeklySummary'] as String? ?? '';
+      final recurringTrigger = summary['recurringTrigger'] as String? ?? '';
+      final sourceOfNegativity = summary['sourceOfNegativity'] as String? ?? '';
+      final riskMessage = summary['riskMessage'] as String? ?? '';
+
+      final positiveCount = provider.positiveCount;
+      final negativeCount = provider.negativeCount;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -150,7 +154,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         ],
 
         // ── Emotional Trajectory ─────────────────────────────────────────────
-        _trajectoryCard(trajectory, positiveStreak, negativeStreak),
+        _countBasedEmotionCard(trajectory, positiveCount, negativeCount),
         const SizedBox(height: 16),
 
         // ── Hidden Insight (hero card) ───────────────────────────────────────
@@ -200,8 +204,8 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
           const SizedBox(height: 16),
         ],
 
-        // ── Streak summary ───────────────────────────────────────────────────
-        _streakRow(positiveStreak, negativeStreak),
+        // ── Count summary ───────────────────────────────────────────────────
+        _countRow(positiveCount, negativeCount),
         const SizedBox(height: 32),
 
         // ── Back to home ─────────────────────────────────────────────────────
@@ -302,8 +306,11 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         ),
       );
 
-  Widget _trajectoryCard(
-      String trajectory, int positiveStreak, int negativeStreak) {
+    Widget _countBasedEmotionCard(
+        String trajectory,
+        int positiveCount,
+        int negativeCount,
+    ){
     final config = _trajectoryConfig(trajectory);
     return Container(
       padding: const EdgeInsets.all(16),
@@ -397,7 +404,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
     }
   }
 
-  Widget _hiddenInsightCard(String insight) => Container(
+    Widget _hiddenInsightCard(String insight) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -451,7 +458,7 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         ),
       );
 
-  Widget _weeklySummaryCard(String text) => Container(
+      Widget _weeklySummaryCard(String text) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -487,14 +494,14 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         ),
       );
 
-  Widget _infoChip({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color bgColor,
-    required Color textColor,
-    required Color iconColor,
-  }) =>
+        Widget _infoChip({
+          required IconData icon,
+          required String label,
+          required String value,
+          required Color bgColor,
+          required Color textColor,
+          required Color iconColor,
+        }) =>
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -524,69 +531,69 @@ class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
         ),
       );
 
-  Widget _streakRow(int positive, int negative) => Row(
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE1F5EE),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('😊', style: TextStyle(fontSize: 20)),
-                  const SizedBox(height: 6),
-                  Text(
-                    '$positive ${positive == 1 ? 'day' : 'days'}',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1D9E75)),
+      Widget _countRow(int positive, int negative) => Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE1F5EE),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const Text(
-                    'positive streak',
-                    style:
-                        TextStyle(fontSize: 10, color: Color(0xFF888780)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('😊', style: TextStyle(fontSize: 20)),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$positive ${positive == 1 ? 'day' : 'days'}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1D9E75),
+                        ),
+                      ),
+                      const Text(
+                        'positive days',
+                        style: TextStyle(fontSize: 10, color: Color(0xFF888780)),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAECE7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('😞', style: TextStyle(fontSize: 20)),
-                  const SizedBox(height: 6),
-                  Text(
-                    '$negative ${negative == 1 ? 'day' : 'days'}',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFE24B4A)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAECE7),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const Text(
-                    'negative streak',
-                    style:
-                        TextStyle(fontSize: 10, color: Color(0xFF888780)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('😞', style: TextStyle(fontSize: 20)),
+                      const SizedBox(height: 6),
+                      Text(
+                        '$negative ${negative == 1 ? 'day' : 'days'}',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFE24B4A)),
+                      ),
+                      const Text(
+                        'negative days',
+                        style:
+                            TextStyle(fontSize: 10, color: Color(0xFF888780)),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
-      );
+            ],
+          );
 
-  Widget _sectionLabel(String text) => Text(
+      Widget _sectionLabel(String text) => Text(
         text,
         style: const TextStyle(
             fontSize: 10,
