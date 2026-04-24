@@ -227,12 +227,22 @@ class _LogMoodScreenState extends State<LogMoodScreen>
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 28),
+                    // Shrink the space to 8 if editing, otherwise keep it 28
+                    SizedBox(height: widget.isEditing ? 8 : 28),
 
               if (widget.isEditing)
                 Container(
@@ -359,6 +369,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
               Expanded(
                 child: Container(
+                  constraints: const BoxConstraints(minHeight: 140),
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -438,9 +449,14 @@ class _LogMoodScreenState extends State<LogMoodScreen>
               ),
 
               const SizedBox(height: 16),
-            ],
-          ),
-        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }, // Closes LayoutBuilder's builder
+        ), // Closes LayoutBuilder
       ),
     );
   }
