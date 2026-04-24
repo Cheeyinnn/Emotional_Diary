@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
+import 'package:provider/provider.dart';
+import '../providers/activity_provider.dart';
 
 class GratitudeJournalingScreen extends StatefulWidget {
   final bool fromWellness;
@@ -54,7 +56,13 @@ class _GratitudeJournalingScreenState
       );
       return;
     }
+
+    context.read<ActivityProvider>().logActivity(
+      activityName: 'Gratitude Journaling',
+      userContent: _controllers.map((c) => c.text.trim()).join(' | '),
+    );
     setState(() => _done = true);
+
   }
 
   @override

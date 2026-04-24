@@ -281,7 +281,7 @@ class _MeditationScreenState extends State<MeditationScreen>
                   child: ElevatedButton.icon(
                     onPressed: () {
                       context.read<ActivityProvider>().logActivity(
-                        activityName: 'Guided Meditation', // 各自名字
+                        activityName: 'Guided Meditation', 
                       );
                       _handleBack();
                     },

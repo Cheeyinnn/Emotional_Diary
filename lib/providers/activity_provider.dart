@@ -87,4 +87,15 @@ class ActivityProvider extends ChangeNotifier {
     await _saveLogs();
     notifyListeners();
   }
+
+  Map<String, int> get top5Activities {
+    final counts = <String, int>{};
+    for (final log in last7Days) {
+      counts[log.activityName] = (counts[log.activityName] ?? 0) + 1;
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return Map.fromEntries(sorted.take(5));
+  }
+
 }
