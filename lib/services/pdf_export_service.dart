@@ -7,7 +7,11 @@ import '../models/diary_entry.dart';
 
 class PdfExportService {
   /// Generates a PDF of all diary entries and returns the file path.
-  static Future<String> exportDiary(List<DiaryEntry> entries) async {
+  static Future<String> exportDiary(
+    List<DiaryEntry> entries, {
+    String? userName,
+    String? userEmail,
+  }) async {
     final pdf = pw.Document();
 
     final moodColors = [
@@ -17,6 +21,8 @@ class PdfExportService {
       PdfColors.green500,
       PdfColors.blue400,
     ];
+
+    final labels = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
 
     final months = [
       'Jan',
@@ -33,7 +39,14 @@ class PdfExportService {
       'Dec'
     ];
 
-    // ── Load mood emoji PNG assets ───────────────────────────────────────────
+    final safeUserName =
+        userName != null && userName.trim().isNotEmpty ? userName.trim() : 'Guest User';
+
+    final safeUserEmail =
+        userEmail != null && userEmail.trim().isNotEmpty ? userEmail.trim() : 'Not provided';
+
+    final reportId = 'ED-${DateTime.now().millisecondsSinceEpoch}';
+
     final moodEmojiImages = [
       pw.MemoryImage(
         (await rootBundle.load('assets/emojis/awful.webp'))
@@ -61,6 +74,34 @@ class PdfExportService {
             .asUint8List(),
       ),
     ];
+
+    final sortedEntries = [...entries]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    final reportPeriod = sortedEntries.isEmpty
+        ? 'No diary entries recorded'
+        : '${_formatDate(sortedEntries.last.createdAt, months)} to ${_formatDate(sortedEntries.first.createdAt, months)}';
+
+    String mostFrequentMood = '-';
+    double avgMood = 0.0;
+    final moodCounts = List<int>.filled(5, 0);
+
+    if (sortedEntries.isNotEmpty) {
+      for (final e in sortedEntries) {
+        moodCounts[e.mood.clamp(0, 4)]++;
+      }
+
+      avgMood = sortedEntries.map((e) => e.mood).reduce((a, b) => a + b) /
+          sortedEntries.length;
+
+      int maxIndex = 0;
+      for (int i = 1; i < moodCounts.length; i++) {
+        if (moodCounts[i] > moodCounts[maxIndex]) {
+          maxIndex = i;
+        }
+      }
+      mostFrequentMood = labels[maxIndex];
+    }
 
     // ── Cover page ────────────────────────────────────────────────────────────
     pdf.addPage(
@@ -96,9 +137,9 @@ class PdfExportService {
               ),
               pw.SizedBox(height: 32),
               pw.Text(
-                'Emotion\nDiary',
+                'Personal\nEmotion Report',
                 style: pw.TextStyle(
-                  fontSize: 52,
+                  fontSize: 48,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.white,
                 ),
@@ -111,7 +152,47 @@ class PdfExportService {
                   color: PdfColors.teal100,
                 ),
               ),
-              pw.SizedBox(height: 8),
+              pw.SizedBox(height: 26),
+
+              pw.Container(
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0x1FFFFFFF),
+                  borderRadius: pw.BorderRadius.circular(12),
+                  border: pw.Border.all(color: PdfColors.teal300),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Prepared for',
+                      style: const pw.TextStyle(
+                        fontSize: 11,
+                        color: PdfColors.teal100,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      safeUserName,
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      safeUserEmail,
+                      style: const pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColors.teal100,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
               pw.Text(
                 'Exported on ${_formatDate(DateTime.now(), months)}',
                 style: const pw.TextStyle(
@@ -119,6 +200,14 @@ class PdfExportService {
                   color: PdfColors.teal200,
                 ),
               ),
+              pw.Text(
+                'Report ID: $reportId',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.teal200,
+                ),
+              ),
+
               pw.Spacer(),
               pw.Divider(color: PdfColors.teal500),
               pw.SizedBox(height: 12),
@@ -126,16 +215,14 @@ class PdfExportService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text(
-                    'Total Entries: ${entries.length}',
+                    'Total Entries: ${sortedEntries.length}',
                     style: const pw.TextStyle(
                       color: PdfColors.white,
                       fontSize: 13,
                     ),
                   ),
                   pw.Text(
-                    entries.isEmpty
-                        ? ''
-                        : 'From ${_formatDate(entries.last.createdAt, months)} to ${_formatDate(entries.first.createdAt, months)}',
+                    reportPeriod,
                     style: const pw.TextStyle(
                       color: PdfColors.teal200,
                       fontSize: 12,
@@ -150,17 +237,7 @@ class PdfExportService {
     );
 
     // ── Stats summary page ────────────────────────────────────────────────────
-    if (entries.isNotEmpty) {
-      final moodCounts = List<int>.filled(5, 0);
-
-      for (final e in entries) {
-        moodCounts[e.mood.clamp(0, 4)]++;
-      }
-
-      final avgMood =
-          entries.map((e) => e.mood).reduce((a, b) => a + b) / entries.length;
-
-      final labels = ['Awful', 'Bad', 'Okay', 'Good', 'Great'];
+    if (sortedEntries.isNotEmpty) {
       final avgMoodIndex = avgMood.round().clamp(0, 4);
 
       pdf.addPage(
@@ -172,9 +249,28 @@ class PdfExportService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 _pdfSectionHeader('Emotional Overview'),
-                pw.SizedBox(height: 24),
+                pw.SizedBox(height: 18),
 
-                // Avg mood card
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                    borderRadius: pw.BorderRadius.circular(10),
+                    border: pw.Border.all(color: PdfColors.grey300),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      _infoRow('Name', safeUserName),
+                      _infoRow('Email', safeUserEmail),
+                      _infoRow('Report Period', reportPeriod),
+                      _infoRow('Report ID', reportId),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 20),
+
                 pw.Container(
                   padding: const pw.EdgeInsets.all(20),
                   decoration: pw.BoxDecoration(
@@ -210,6 +306,14 @@ class PdfExportService {
                               color: PdfColors.teal600,
                             ),
                           ),
+                          pw.SizedBox(height: 8),
+                          pw.Text(
+                            'Most Frequent Mood: $mostFrequentMood',
+                            style: const pw.TextStyle(
+                              fontSize: 11,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
                         ],
                       ),
                       pw.Spacer(),
@@ -229,7 +333,40 @@ class PdfExportService {
                   ),
                 ),
 
-                pw.SizedBox(height: 24),
+                pw.SizedBox(height: 20),
+
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(14),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue50,
+                    borderRadius: pw.BorderRadius.circular(10),
+                    border: pw.Border.all(color: PdfColors.blue100),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'AI Summary Note',
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue800,
+                        ),
+                      ),
+                      pw.SizedBox(height: 6),
+                      pw.Text(
+                        _generateSummaryNote(avgMood, mostFrequentMood),
+                        style: const pw.TextStyle(
+                          fontSize: 11,
+                          color: PdfColors.blueGrey800,
+                          lineSpacing: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 22),
                 pw.Text(
                   'Mood Distribution',
                   style: pw.TextStyle(
@@ -239,7 +376,6 @@ class PdfExportService {
                 ),
                 pw.SizedBox(height: 12),
 
-                // Bar chart (manual)
                 ...List.generate(5, (i) {
                   final count = moodCounts[i];
                   final maxCount = moodCounts.reduce((a, b) => a > b ? a : b);
@@ -311,10 +447,10 @@ class PdfExportService {
     // ── Diary entry pages ─────────────────────────────────────────────────────
     const entriesPerPage = 3;
 
-    for (int i = 0; i < entries.length; i += entriesPerPage) {
-      final pageEntries = entries.sublist(
+    for (int i = 0; i < sortedEntries.length; i += entriesPerPage) {
+      final pageEntries = sortedEntries.sublist(
         i,
-        (i + entriesPerPage).clamp(0, entries.length),
+        (i + entriesPerPage).clamp(0, sortedEntries.length),
       );
 
       pdf.addPage(
@@ -343,7 +479,7 @@ class PdfExportService {
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      'Emotion Diary — Exported ${_formatDate(DateTime.now(), months)}',
+                      '$safeUserName — Emotion Diary Exported ${_formatDate(DateTime.now(), months)}',
                       style: const pw.TextStyle(
                         fontSize: 9,
                         color: PdfColors.grey400,
@@ -387,7 +523,6 @@ class PdfExportService {
       ),
     );
 
-    // Save to temp directory
     final dir = await getTemporaryDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final file = File('${dir.path}/emotion_diary_$timestamp.pdf');
@@ -419,6 +554,37 @@ class PdfExportService {
         ],
       );
 
+  static pw.Widget _infoRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 5),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 90,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.grey700,
+              ),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: const pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _pdfEntryCard(
     DiaryEntry entry,
     List<String> months,
@@ -439,7 +605,6 @@ class PdfExportService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Header row
           pw.Row(
             children: [
               pw.Container(
@@ -498,7 +663,6 @@ class PdfExportService {
           ),
           pw.SizedBox(height: 10),
 
-          // Entry text
           pw.Text(
             entry.entryText,
             style: const pw.TextStyle(
@@ -508,7 +672,6 @@ class PdfExportService {
             ),
           ),
 
-          // AI reflection
           if (entry.aiReflection != null &&
               entry.aiReflection!.trim().isNotEmpty) ...[
             pw.SizedBox(height: 8),
@@ -544,7 +707,6 @@ class PdfExportService {
             ),
           ],
 
-          // Activity suggestion
           if (entry.activitySuggestion != null &&
               entry.activitySuggestion!.trim().isNotEmpty) ...[
             pw.SizedBox(height: 6),
@@ -592,7 +754,6 @@ class PdfExportService {
             ),
           ],
 
-          // Trigger keyword
           if (entry.triggerKeyword != null &&
               entry.triggerKeyword!.trim().isNotEmpty) ...[
             pw.SizedBox(height: 6),
@@ -617,6 +778,19 @@ class PdfExportService {
         ],
       ),
     );
+  }
+
+  static String _generateSummaryNote(double avgMood, String mostFrequentMood) {
+    if (avgMood >= 3.3) {
+      return 'Overall, this report shows a generally positive emotional pattern. '
+          'The most frequent mood recorded was $mostFrequentMood. Continue using the diary to maintain self-awareness and strengthen positive routines.';
+    } else if (avgMood >= 2.0) {
+      return 'This report shows a balanced emotional pattern with some changes across entries. '
+          'The most frequent mood recorded was $mostFrequentMood. Regular reflection may help identify triggers and support better emotional regulation.';
+    } else {
+      return 'This report shows several lower mood entries. '
+          'The most frequent mood recorded was $mostFrequentMood. Consider using the suggested wellness activities and seeking support if negative feelings continue.';
+    }
   }
 
   static String _formatDate(DateTime dt, List<String> months) =>

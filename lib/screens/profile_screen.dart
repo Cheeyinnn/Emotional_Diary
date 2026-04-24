@@ -256,7 +256,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     try {
-      final path = await PdfExportService.exportDiary(provider.entries);
+      final user = FirebaseAuth.instance.currentUser;
+
+      final path = await PdfExportService.exportDiary(
+        provider.entries,
+        userName: user?.displayName,
+        userEmail: user?.email,
+      );
 
       if (!mounted) return;
       Navigator.pop(context);
