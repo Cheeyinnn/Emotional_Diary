@@ -21,7 +21,7 @@ class _InsightScreenState extends State<InsightScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DiaryProvider>().loadWeeklySummary();
-      
+      context.read<ActivityProvider>().forceRefresh();
     });
   }
 
@@ -134,8 +134,7 @@ class _InsightScreenState extends State<InsightScreen> {
           const SizedBox(height: 20),
 
           // Top Activities donut chart
-          if (activityProvider.top5Activities.isNotEmpty) ...[
-            _sectionTitle('Top Activities This Week'),
+          _sectionTitle('Top Activities This Week'),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(16),
@@ -144,16 +143,14 @@ class _InsightScreenState extends State<InsightScreen> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
               ),
-              child: SizedBox(
-                height: 200,
-                child: _ActivityDonutChart(activities: activityProvider.top5Activities),
-              ),
+              child: activityProvider.top5Activities.isEmpty
+                  ? _emptyCard('No activities logged this week yet!')
+                  : SizedBox(
+                      height: 200,
+                      child: _ActivityDonutChart(activities: activityProvider.top5Activities),
+                    ),
             ),
             const SizedBox(height: 20),
-          ],
-
-
-
 
 
           // AI Summary card
@@ -168,7 +165,7 @@ class _InsightScreenState extends State<InsightScreen> {
           const SizedBox(height: 20),
 
           
-          const SizedBox(height: 32),
+          //const SizedBox(height: 32),
 
           // 在 Recent Entries 下面，SizedBox(height: 32) 之前加
           GestureDetector(
