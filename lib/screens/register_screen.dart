@@ -1,3 +1,4 @@
+import 'package:emotion_diary/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/transitions.dart';
@@ -70,7 +71,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showSnackBar('Account created successfully.');
 
       Navigator.of(context).pushReplacement(
-        fadeScaleRoute(const SignInScreen()),
+        fadeScaleRoute(const HomeScreen()),
       );
     } catch (e) {
       String message = 'Registration failed. Please try again.';
