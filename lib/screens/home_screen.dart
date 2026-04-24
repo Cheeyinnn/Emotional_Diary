@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import '../utils/transitions.dart';
@@ -87,14 +89,37 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends StatefulWidget {
   const _HomeTab();
+
+  @override
+  State<_HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<_HomeTab> {
+  bool _riskAlertsEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRiskAlertSetting();
+  }
+
+  Future<void> _loadRiskAlertSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) return;
+
+    setState(() {
+      _riskAlertsEnabled = prefs.getBool('risk_alerts') ?? true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DiaryProvider>();
     final last7 = provider.last7Days;
-    final hasRisk = provider.hasRiskFlag;
+    final hasRisk = provider.hasRiskFlag && _riskAlertsEnabled;
     final isAnalyzing = provider.isAnalyzing;
 
     final suggestions = last7
@@ -205,7 +230,9 @@ class _HomeTab extends StatelessWidget {
                         Icons.notifications_outlined,
                         color: Color(0xFF1A1A2E),
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        await _loadRiskAlertSetting();
+                      },
                     ),
                   ],
                 ),
@@ -583,13 +610,15 @@ class _HomeTab extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context)
-            .push(slideUpRoute(const LogMoodScreen())),
+        onPressed: () =>
+            Navigator.of(context).push(slideUpRoute(const LogMoodScreen())),
         backgroundColor: const Color(0xFF1D9E75),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Log Mood',
-            style: TextStyle(fontWeight: FontWeight.w600)),
+        label: const Text(
+          'Log Mood',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -695,9 +724,8 @@ class _MoodWeekRow extends StatelessWidget {
           );
         } catch (_) {}
 
-        final isToday = day.day == now.day &&
-            day.month == now.month &&
-            day.year == now.year;
+        final isToday =
+            day.day == now.day && day.month == now.month && day.year == now.year;
 
         return GestureDetector(
           onTap: entry != null
