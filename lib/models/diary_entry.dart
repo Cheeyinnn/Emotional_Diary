@@ -5,10 +5,16 @@ class DiaryEntry {
   final String entryText;
   final int mood; // 0=Awful, 1=Bad, 2=Okay, 3=Good, 4=Great
   final DateTime createdAt;
+
   final String? aiReflection;
   final String? triggerKeyword;
   final double? emotionIntensity;
   final String? activitySuggestion;
+
+  final String? validation;
+  final String? patternInsight;
+  final String? activityDuration;
+  final String? activitySteps;
 
   DiaryEntry({
     required this.id,
@@ -19,6 +25,10 @@ class DiaryEntry {
     this.triggerKeyword,
     this.emotionIntensity,
     this.activitySuggestion,
+    this.validation,
+    this.patternInsight,
+    this.activityDuration,
+    this.activitySteps,
   });
 
   String get moodLabel {
@@ -43,20 +53,32 @@ class DiaryEntry {
   }
 
   DiaryEntry copyWith({
+    String? id,
+    String? entryText,
+    int? mood,
+    DateTime? createdAt,
     String? aiReflection,
     String? triggerKeyword,
     double? emotionIntensity,
     String? activitySuggestion,
+    String? validation,
+    String? patternInsight,
+    String? activityDuration,
+    String? activitySteps,
   }) {
     return DiaryEntry(
-      id: id,
-      entryText: entryText,
-      mood: mood,
-      createdAt: createdAt,
+      id: id ?? this.id,
+      entryText: entryText ?? this.entryText,
+      mood: mood ?? this.mood,
+      createdAt: createdAt ?? this.createdAt,
       aiReflection: aiReflection ?? this.aiReflection,
       triggerKeyword: triggerKeyword ?? this.triggerKeyword,
       emotionIntensity: emotionIntensity ?? this.emotionIntensity,
       activitySuggestion: activitySuggestion ?? this.activitySuggestion,
+      validation: validation ?? this.validation,
+      patternInsight: patternInsight ?? this.patternInsight,
+      activityDuration: activityDuration ?? this.activityDuration,
+      activitySteps: activitySteps ?? this.activitySteps,
     );
   }
 
@@ -70,21 +92,29 @@ class DiaryEntry {
       'triggerKeyword': triggerKeyword,
       'emotionIntensity': emotionIntensity,
       'activitySuggestion': activitySuggestion,
+      'validation': validation,
+      'patternInsight': patternInsight,
+      'activityDuration': activityDuration,
+      'activitySteps': activitySteps,
     };
   }
 
   factory DiaryEntry.fromMap(Map<String, dynamic> map) {
     return DiaryEntry(
-      id: map['id'],
-      entryText: map['entryText'],
-      mood: map['mood'],
-      createdAt: DateTime.parse(map['createdAt']),
-      aiReflection: map['aiReflection'],
-      triggerKeyword: map['triggerKeyword'],
+      id: (map['id'] ?? '').toString(),
+      entryText: (map['entryText'] ?? '').toString(),
+      mood: (map['mood'] ?? 2) as int,
+      createdAt: DateTime.parse(map['createdAt'].toString()),
+      aiReflection: map['aiReflection']?.toString(),
+      triggerKeyword: map['triggerKeyword']?.toString(),
       emotionIntensity: map['emotionIntensity'] != null
           ? (map['emotionIntensity'] as num).toDouble()
           : null,
-      activitySuggestion: map['activitySuggestion'],
+      activitySuggestion: map['activitySuggestion']?.toString(),
+      validation: map['validation']?.toString(),
+      patternInsight: map['patternInsight']?.toString(),
+      activityDuration: map['activityDuration']?.toString(),
+      activitySteps: map['activitySteps']?.toString(),
     );
   }
 }

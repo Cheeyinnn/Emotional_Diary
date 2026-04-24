@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/transitions.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,8 +17,12 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _name = 'Au Xiao Xuan';
-  String _email = 'auxiaoxuan@gmail.com';
+  String _name = 'Guest';
+  String _email = 'guest@emotiondiary.app';
+
+  final TextEditingController _nameCtrl = TextEditingController();
+  final TextEditingController _emailCtrl = TextEditingController();
+
   bool _dailyReminder = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
   bool _riskAlerts = true;
@@ -35,13 +41,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadPrefs();
+    _loadUserProfile();
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        _name = 'Guest';
+        _email = 'guest@emotiondiary.app';
+      });
+      _nameCtrl.text = _name;
+      _emailCtrl.text = _email;
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      String loadedName;
+      String loadedEmail;
+
+      if (doc.exists) {
+        final data = doc.data();
+        final firestoreName = data?['name']?.toString().trim();
+        final firestoreEmail = data?['email']?.toString().trim();
+
+        loadedName = (firestoreName != null && firestoreName.isNotEmpty)
+            ? firestoreName
+            : ((user.displayName?.trim().isNotEmpty ?? false)
+                ? user.displayName!.trim()
+                : (user.email?.split('@').first ?? 'Guest'));
+
+        loadedEmail = (firestoreEmail != null && firestoreEmail.isNotEmpty)
+            ? firestoreEmail
+            : (user.email?.trim() ?? 'guest@emotiondiary.app');
+      } else {
+        loadedName = (user.displayName?.trim().isNotEmpty ?? false)
+            ? user.displayName!.trim()
+            : (user.email?.split('@').first ?? 'Guest');
+
+        loadedEmail = user.email?.trim() ?? 'guest@emotiondiary.app';
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _name = loadedName;
+        _email = loadedEmail;
+      });
+      _nameCtrl.text = loadedName;
+      _emailCtrl.text = loadedEmail;
+    } catch (_) {
+      final fallbackName = (user.displayName?.trim().isNotEmpty ?? false)
+          ? user.displayName!.trim()
+          : (user.email?.split('@').first ?? 'Guest');
+      final fallbackEmail = user.email?.trim() ?? 'guest@emotiondiary.app';
+
+      if (!mounted) return;
+
+      setState(() {
+        _name = fallbackName;
+        _email = fallbackEmail;
+      });
+      _nameCtrl.text = fallbackName;
+      _emailCtrl.text = fallbackEmail;
+    }
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
     setState(() {
-      _name = prefs.getString('user_name') ?? 'Au Xiao Xuan';
-      _email = prefs.getString('user_email') ?? 'auxiaoxuan@gmail.com';
       _dailyReminder = prefs.getBool('daily_reminder') ?? true;
       _riskAlerts = prefs.getBool('risk_alerts') ?? true;
       _weeklyReport = prefs.getBool('weekly_report') ?? true;
@@ -54,8 +137,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _savePrefs() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', _name);
-    await prefs.setString('user_email', _email);
     await prefs.setBool('daily_reminder', _dailyReminder);
     await prefs.setBool('risk_alerts', _riskAlerts);
     await prefs.setBool('weekly_report', _weeklyReport);
@@ -63,13 +144,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.setInt('reminder_hour', _reminderTime.hour);
     await prefs.setInt('reminder_minute', _reminderTime.minute);
 
-    if (mounted) {
+    final user = FirebaseAuth.instance.currentUser;
+    final newName = _nameCtrl.text.trim();
+    final newEmail = _emailCtrl.text.trim();
+
+    try {
+      if (user != null) {
+        final currentDisplayName = user.displayName?.trim() ?? '';
+        final currentEmail = user.email?.trim() ?? '';
+
+        if (newName.isNotEmpty && newName != currentDisplayName) {
+          await user.updateDisplayName(newName);
+        }
+
+        if (newEmail.isNotEmpty && newEmail != currentEmail) {
+          await user.verifyBeforeUpdateEmail(newEmail);
+        }
+
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': newName,
+          'email': newEmail,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        await user.reload();
+      }
+
+      if (!mounted) return;
+      await _loadUserProfile();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Settings saved!'),
           backgroundColor: Color(0xFF1D9E75),
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 2),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to update profile.';
+
+      if (e.code == 'requires-recent-login') {
+        message = 'Please sign in again before changing email.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email address.';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'This email is already in use.';
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFFE24B4A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to save settings: $e'),
+          backgroundColor: const Color(0xFFE24B4A),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -88,7 +226,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _reminderTime = picked);
+    if (picked != null) {
+      setState(() => _reminderTime = picked);
+    }
   }
 
   Future<void> _clearAllData() async {
@@ -97,23 +237,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Clear All Data?'),
         content: const Text(
-            'This will permanently delete all your diary entries and AI insights. This cannot be undone.'),
+          'This will permanently delete all your diary entries and AI insights. This cannot be undone.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(color: Color(0xFFE24B4A))),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Color(0xFFE24B4A)),
+            ),
           ),
         ],
       ),
     );
+
     if (confirm == true && mounted) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('diary_entries');
-      // ignore: use_build_context_synchronously
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('All data cleared.'),
@@ -136,7 +281,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -154,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final path = await PdfExportService.exportDiary(provider.entries);
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       await Share.shareXFiles(
         [XFile(path)],
         subject: 'My Emotion Diary Export',
@@ -173,7 +317,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _signOut() {
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    setState(() {
+      _name = 'Guest';
+      _email = 'guest@emotiondiary.app';
+      _nameCtrl.text = _name;
+      _emailCtrl.text = _email;
+    });
+
     Navigator.of(context).pushAndRemoveUntil(
       fadeScaleRoute(const WelcomeScreen()),
       (r) => false,
@@ -196,16 +351,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: _savePrefs,
-            child: const Text('Save',
-                style: TextStyle(
-                    color: Color(0xFF1D9E75), fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Save',
+              style: TextStyle(
+                color: Color(0xFF1D9E75),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          // Avatar + stats
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -222,11 +380,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       radius: 40,
                       backgroundColor: Colors.white.withOpacity(0.2),
                       child: Text(
-                        _name.isNotEmpty ? _name[0].toUpperCase() : 'A',
+                        _name.isNotEmpty ? _name[0].toUpperCase() : 'G',
                         style: const TextStyle(
-                            fontSize: 32,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700),
+                          fontSize: 32,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     Positioned(
@@ -239,34 +398,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: Colors.white,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.edit,
-                            size: 14, color: Color(0xFF1D9E75)),
+                        child: const Icon(
+                          Icons.edit,
+                          size: 14,
+                          color: Color(0xFF1D9E75),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(_name,
-                    style: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600)),
-                Text(_email,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.white.withOpacity(0.8))),
+                Text(
+                  _name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  _email,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _StatItem(
-                        value: totalEntries.toString(), label: 'Entries'),
+                    _StatItem(value: totalEntries.toString(), label: 'Entries'),
                     Container(width: 1, height: 32, color: Colors.white24),
                     _StatItem(
-                        value: avgMood.toStringAsFixed(1), label: 'Avg Mood'),
+                      value: avgMood.toStringAsFixed(1),
+                      label: 'Avg Mood',
+                    ),
                     Container(width: 1, height: 32, color: Colors.white24),
                     _StatItem(
-                        value: provider.last7Days.length.toString(),
-                        label: 'This Week'),
+                      value: provider.last7Days.length.toString(),
+                      label: 'This Week',
+                    ),
                   ],
                 ),
               ],
@@ -274,29 +445,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Personal info
           _SectionHeader(title: 'Personal Info'),
           _SettingsCard(
             children: [
               _EditableTile(
                 icon: Icons.person_outline,
                 label: 'Name',
-                value: _name,
-                onChanged: (v) => setState(() => _name = v),
+                controller: _nameCtrl,
               ),
               const Divider(height: 1, indent: 52),
               _EditableTile(
                 icon: Icons.email_outlined,
                 label: 'Email',
-                value: _email,
-                onChanged: (v) => setState(() => _email = v),
+                controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Goal
           _SectionHeader(title: 'My Wellness Goal'),
           _SettingsCard(
             children: [
@@ -312,22 +479,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: _selectedGoal == g
                                   ? const Color(0xFF1D9E75)
                                   : const Color(0xFFF0F0F0),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: Text(g,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: _selectedGoal == g
-                                        ? Colors.white
-                                        : const Color(0xFF888780),
-                                    fontWeight: _selectedGoal == g
-                                        ? FontWeight.w600
-                                        : FontWeight.w400)),
+                            child: Text(
+                              g,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _selectedGoal == g
+                                    ? Colors.white
+                                    : const Color(0xFF888780),
+                                fontWeight: _selectedGoal == g
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
                           ),
                         ),
                       )
@@ -338,7 +510,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Notifications
           _SectionHeader(title: 'Notifications'),
           _SettingsCard(
             children: [
@@ -352,17 +523,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (_dailyReminder) ...[
                 const Divider(height: 1, indent: 52),
                 ListTile(
-                  leading: const Icon(Icons.access_time,
-                      color: Color(0xFF888780), size: 20),
-                  title: const Text('Reminder Time',
-                      style: TextStyle(fontSize: 13)),
+                  leading: const Icon(
+                    Icons.access_time,
+                    color: Color(0xFF888780),
+                    size: 20,
+                  ),
+                  title: const Text(
+                    'Reminder Time',
+                    style: TextStyle(fontSize: 13),
+                  ),
                   trailing: TextButton(
                     onPressed: _pickTime,
                     child: Text(
                       _reminderTime.format(context),
                       style: const TextStyle(
-                          color: Color(0xFF1D9E75),
-                          fontWeight: FontWeight.w600),
+                        color: Color(0xFF1D9E75),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -387,7 +564,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Data & Privacy
           _SectionHeader(title: 'Data & Privacy'),
           _SettingsCard(
             children: [
@@ -414,7 +590,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Sign out
           SizedBox(
             width: double.infinity,
             height: 50,
@@ -424,18 +599,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 foregroundColor: const Color(0xFFE24B4A),
                 side: const BorderSide(color: Color(0xFFE24B4A)),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               icon: const Icon(Icons.logout, size: 18),
-              label: const Text('Sign Out',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              label: const Text(
+                'Sign Out',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
           const SizedBox(height: 32),
 
           const Center(
-            child: Text('Emotion Diary v1.0.0 — UCCD3223 Group 39',
-                style: TextStyle(fontSize: 11, color: Color(0xFFB4B2A9))),
+            child: Text(
+              'Emotion Diary v1.0.0 — UCCD3223 Group 39',
+              style: TextStyle(fontSize: 11, color: Color(0xFFB4B2A9)),
+            ),
           ),
           const SizedBox(height: 16),
         ],
@@ -453,14 +633,21 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.white)),
-        Text(label,
-            style:
-                TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.7))),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.white.withOpacity(0.7),
+          ),
+        ),
       ],
     );
   }
@@ -474,12 +661,15 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(title,
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF888780),
-              letterSpacing: 0.5)),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF888780),
+          letterSpacing: 0.5,
+        ),
+      ),
     );
   }
 }
@@ -504,15 +694,13 @@ class _SettingsCard extends StatelessWidget {
 class _EditableTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
-  final ValueChanged<String> onChanged;
+  final TextEditingController controller;
   final TextInputType? keyboardType;
 
   const _EditableTile({
     required this.icon,
     required this.label,
-    required this.value,
-    required this.onChanged,
+    required this.controller,
     this.keyboardType,
   });
 
@@ -520,16 +708,18 @@ class _EditableTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon, color: const Color(0xFF888780), size: 20),
-      title: Text(label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),
-      subtitle: TextFormField(
-        initialValue: value,
-        onChanged: onChanged,
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: 12, color: Color(0xFF888780)),
+      ),
+      subtitle: TextField(
+        controller: controller,
         keyboardType: keyboardType,
         style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF1A1A2E),
-            fontWeight: FontWeight.w500),
+          fontSize: 14,
+          color: Color(0xFF1A1A2E),
+          fontWeight: FontWeight.w500,
+        ),
         decoration: const InputDecoration(
           border: InputBorder.none,
           isDense: true,
@@ -559,10 +749,14 @@ class _SwitchTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return SwitchListTile(
       secondary: Icon(icon, color: const Color(0xFF888780), size: 20),
-      title:
-          Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF1A1A2E))),
-      subtitle: Text(subtitle,
-          style: const TextStyle(fontSize: 11, color: Color(0xFFB4B2A9))),
+      title: Text(
+        label,
+        style: const TextStyle(fontSize: 13, color: Color(0xFF1A1A2E)),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 11, color: Color(0xFFB4B2A9)),
+      ),
       value: value,
       onChanged: onChanged,
       activeColor: const Color(0xFF1D9E75),
@@ -587,14 +781,23 @@ class _TapTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading:
-          Icon(icon, color: textColor ?? const Color(0xFF888780), size: 20),
-      title: Text(label,
-          style: TextStyle(
-              fontSize: 13,
-              color: textColor ?? const Color(0xFF1A1A2E))),
-      trailing: const Icon(Icons.chevron_right,
-          color: Color(0xFFB4B2A9), size: 18),
+      leading: Icon(
+        icon,
+        color: textColor ?? const Color(0xFF888780),
+        size: 20,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          color: textColor ?? const Color(0xFF1A1A2E),
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: Color(0xFFB4B2A9),
+        size: 18,
+      ),
       onTap: onTap,
       dense: true,
     );
