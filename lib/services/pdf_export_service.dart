@@ -36,27 +36,27 @@ class PdfExportService {
     // ── Load mood emoji PNG assets ───────────────────────────────────────────
     final moodEmojiImages = [
       pw.MemoryImage(
-        (await rootBundle.load('assets/emojis/awful.jpg'))
+        (await rootBundle.load('assets/emojis/awful.webp'))
             .buffer
             .asUint8List(),
       ),
       pw.MemoryImage(
-        (await rootBundle.load('assets/emojis/bad.jpg'))
+        (await rootBundle.load('assets/emojis/bad.webp'))
             .buffer
             .asUint8List(),
       ),
       pw.MemoryImage(
-        (await rootBundle.load('assets/emojis/okay.jpg'))
+        (await rootBundle.load('assets/emojis/okay.webp'))
             .buffer
             .asUint8List(),
       ),
       pw.MemoryImage(
-        (await rootBundle.load('assets/emojis/good.jpg'))
+        (await rootBundle.load('assets/emojis/good.webp'))
             .buffer
             .asUint8List(),
       ),
       pw.MemoryImage(
-        (await rootBundle.load('assets/emojis/great.jpg'))
+        (await rootBundle.load('assets/emojis/great.webp'))
             .buffer
             .asUint8List(),
       ),

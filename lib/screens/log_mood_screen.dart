@@ -8,7 +8,8 @@ import 'ai_respond_screen.dart';
 /// Pass [existingEntry] to enter edit mode.
 class LogMoodScreen extends StatefulWidget {
   final DiaryEntry? existingEntry;
-  const LogMoodScreen({super.key, this.existingEntry});
+  final DateTime? customDate; // 新增：用于接收补录的日期
+  const LogMoodScreen({super.key, this.existingEntry, this.customDate});
 
   bool get isEditing => existingEntry != null;
 
@@ -109,9 +110,11 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
         Navigator.of(context).pop(updatedEntry);
       } else {
+        // 修改点：在 addEntry 中加入 createdAt 参数，传入补录日期
         final data = await provider.addEntry(
           entryText: text,
           mood: _selectedMood,
+          createdAt: widget.customDate, 
         );
 
         final baseEntry = data['entry'] as DiaryEntry;

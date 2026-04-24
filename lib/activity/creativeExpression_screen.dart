@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
+import 'package:provider/provider.dart';
+import '../providers/activity_provider.dart';
 
 class CreativeExpressionScreen extends StatefulWidget {
   final bool fromWellness;
@@ -49,7 +51,11 @@ class _CreativeExpressionScreenState extends State<CreativeExpressionScreen> {
       );
       return;
     }
-    setState(() => _done = true);
+      context.read<ActivityProvider>().logActivity(
+        activityName: 'Creative Expression',
+        userContent: _controller.text.trim(),
+      );
+      setState(() => _done = true);
   }
 
   void _handleBack() {

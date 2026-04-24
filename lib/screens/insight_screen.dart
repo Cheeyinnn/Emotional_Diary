@@ -6,6 +6,7 @@ import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'mood_detail_screen.dart';
 import 'weeklyReport_screen.dart';
+import '../providers/activity_provider.dart';
 
 class InsightScreen extends StatefulWidget {
   const InsightScreen({super.key});
@@ -20,12 +21,14 @@ class _InsightScreenState extends State<InsightScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DiaryProvider>().loadWeeklySummary();
+      
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DiaryProvider>();
+    final activityProvider = context.watch<ActivityProvider>();
     final entries = provider.last7Days;
     final summary = provider.weeklySummary;
     final isLoading = provider.isLoadingWeekly;
@@ -129,6 +132,29 @@ class _InsightScreenState extends State<InsightScreen> {
             ),
           ),
           const SizedBox(height: 20),
+
+          // Top Activities donut chart
+          if (activityProvider.top5Activities.isNotEmpty) ...[
+            _sectionTitle('Top Activities This Week'),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+              ),
+              child: SizedBox(
+                height: 200,
+                child: _ActivityDonutChart(activities: activityProvider.top5Activities),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+
+
+
 
           // AI Summary card
           _sectionTitle('AI Weekly Summary'),
@@ -420,6 +446,95 @@ class _MoodBarChart extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ActivityDonutChart extends StatelessWidget {
+  final Map<String, int> activities;
+  const _ActivityDonutChart({required this.activities});
+
+  static const _colors = [
+    Color(0xFF1D9E75),
+    Color(0xFF534AB7),
+    Color(0xFFBA7517),
+    Color(0xFF378ADD),
+    Color(0xFF993C1D),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = activities.entries.toList();
+    final total = entries.fold(0, (sum, e) => sum + e.value);
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              sections: List.generate(entries.length, (i) {
+                final pct = entries[i].value / total * 100;
+                return PieChartSectionData(
+                  color: _colors[i % _colors.length],
+                  value: entries[i].value.toDouble(),
+                  title: '${pct.round()}%',
+                  radius: 48,
+                  titleStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                  showTitle: pct >= 15,
+                );
+              }),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          flex: 4,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List.generate(entries.length, (i) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: _colors[i % _colors.length],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      entries[i].key,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF444441),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '×${entries[i].value}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF888780),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+          ),
+        ),
+      ],
     );
   }
 }

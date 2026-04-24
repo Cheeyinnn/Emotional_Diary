@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
+import 'package:provider/provider.dart';
+import '../providers/activity_provider.dart';
 
 class StretchingScreen extends StatefulWidget {
   final bool fromWellness;
@@ -266,7 +268,12 @@ class _StretchingScreenState extends State<StretchingScreen> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: _handleBack,
+                    onPressed: () {
+                      context.read<ActivityProvider>().logActivity(
+                        activityName: 'Guided Meditation',
+                      );
+                      _handleBack();
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           _isCompleted ? color : color.withOpacity(0.4),
