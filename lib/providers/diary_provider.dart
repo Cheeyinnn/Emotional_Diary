@@ -114,18 +114,16 @@ class DiaryProvider extends ChangeNotifier {
   // ── FIX 1: trigger weekly summary based on TIME, not entry count ──────────
   // Shows weekly summary if:
   //   (a) risk flag is triggered, OR
-  //   (b) the user's oldest entry is at least 7 days ago (real 7-day window)
+  //   (b) the user's oldest entry is at least 3 days ago (real 3-day window)
   bool get shouldShowWeeklySummary {
     if (hasRiskFlag) return true;
-
-    if (_entries.length < 3) return false;
-
-    final oldest = _entries
-        .map((e) => e.createdAt)
-        .reduce((a, b) => a.isBefore(b) ? a : b);
-
-    final daysSinceFirst = DateTime.now().difference(oldest).inDays;
-    return daysSinceFirst >= 7;
+    
+    
+    final uniqueDays = last7Days
+        .map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day))
+        .toSet();
+    
+    return uniqueDays.length >= 3;
   }
 
   // ── FIX 2: stale check — summary older than 12 hours should be refreshed ──

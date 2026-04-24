@@ -98,4 +98,8 @@ class ActivityProvider extends ChangeNotifier {
     return Map.fromEntries(sorted.take(5));
   }
 
+  Future<void> forceRefresh() async {
+    await _loadLogs();
+  }
+
 }
