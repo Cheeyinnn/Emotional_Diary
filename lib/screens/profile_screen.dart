@@ -26,7 +26,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _dailyReminder = true;
   bool _riskAlerts = true;
-  bool _weeklyReport = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
 
   String _wellnessGoal = 'Reduce Stress';
@@ -101,7 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _dailyReminder = prefs.getBool('daily_reminder') ?? true;
       _riskAlerts = prefs.getBool('risk_alerts') ?? true;
-      _weeklyReport = prefs.getBool('weekly_report') ?? true;
       _wellnessGoal = prefs.getString('wellness_goal') ?? 'Reduce Stress';
 
       final hour = prefs.getInt('reminder_hour') ?? 21;
@@ -115,7 +113,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     await prefs.setBool('daily_reminder', _dailyReminder);
     await prefs.setBool('risk_alerts', _riskAlerts);
-    await prefs.setBool('weekly_report', _weeklyReport);
     await prefs.setString('wellness_goal', _wellnessGoal);
     await prefs.setInt('reminder_hour', _reminderTime.hour);
     await prefs.setInt('reminder_minute', _reminderTime.minute);
@@ -534,16 +531,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: _riskAlerts,
                         onChanged: (v) async {
                           setState(() => _riskAlerts = v);
-                          await _saveSettings();
-                        },
-                      ),
-                      _divider(),
-                      _SwitchTile(
-                        icon: Icons.insights_outlined,
-                        label: 'Weekly AI Report',
-                        value: _weeklyReport,
-                        onChanged: (v) async {
-                          setState(() => _weeklyReport = v);
                           await _saveSettings();
                         },
                       ),
