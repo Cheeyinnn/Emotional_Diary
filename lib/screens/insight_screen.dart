@@ -55,11 +55,11 @@ class _InsightScreenState extends State<InsightScreen> {
         padding: const EdgeInsets.all(20),
         children: [
 
-          // Risk alert
-          if (summary?['riskFlag'] == true) ...[
-            _alertBanner(summary?['riskMessage'] as String?),
-            const SizedBox(height: 16),
-          ],
+          // // Risk alert
+          // if (summary?['riskFlag'] == true) ...[
+          //   _alertBanner(summary?['riskMessage'] as String?),
+          //   const SizedBox(height: 16),
+          // ],
 
           // Header stats
           Row(
@@ -211,31 +211,33 @@ class _InsightScreenState extends State<InsightScreen> {
     );
   }
 
-  Widget _alertBanner(String? msg) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFAECE7),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFF5C4B3)),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.warning_amber_outlined,
-                color: Color(0xFF993C1D), size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                msg ??
-                    'Your mood has been low recently. Please be gentle with yourself.',
-                style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF993C1D),
-                    height: 1.4),
-              ),
-            ),
-          ],
-        ),
-      );
+  // Widget _alertBanner(String? msg) => Container(
+  //   padding: const EdgeInsets.all(14),
+  //   decoration: BoxDecoration(
+  //     color: const Color(0xFFFAECE7),
+  //     borderRadius: BorderRadius.circular(14),
+  //     border: Border.all(color: const Color(0xFFF5C4B3)),
+  //   ),
+  //   child: Row(
+  //     children: [
+  //       const Icon(Icons.warning_amber_outlined,
+  //           color: Color(0xFF993C1D), size: 22),
+  //       const SizedBox(width: 10),
+  //       Expanded(
+  //         child: Text(
+  //           (msg == null || msg.trim().isEmpty)
+  //               ? 'Your mood has been low recently. Please be gentle with yourself.'
+  //               : msg,
+  //           style: const TextStyle(
+  //             fontSize: 12,
+  //             color: Color(0xFF993C1D),
+  //             height: 1.4,
+  //           ),
+  //         ),
+  //       ),
+  //     ],
+  //   ),
+  // );
 
   Widget _sectionTitle(String title) => Text(title,
       style: const TextStyle(
@@ -470,65 +472,73 @@ class _ActivityDonutChart extends StatelessWidget {
           flex: 3,
           child: PieChart(
             PieChartData(
-              sectionsSpace: 2,
-              centerSpaceRadius: 40,
+              sectionsSpace: 4, // Increased space for a cleaner "cut" look
+              centerSpaceRadius: 45, // Slightly larger for a sleeker ring
+              startDegreeOffset: -90,
               sections: List.generate(entries.length, (i) {
                 final pct = entries[i].value / total * 100;
                 return PieChartSectionData(
                   color: _colors[i % _colors.length],
                   value: entries[i].value.toDouble(),
                   title: '${pct.round()}%',
-                  radius: 48,
+                  radius: 50,
                   titleStyle: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                  showTitle: pct >= 15,
+                  // Only show title if there's enough room
+                  showTitle: pct > 10, 
+                  titlePositionPercentageOffset: 0.5,
                 );
               }),
             ),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 20),
         Expanded(
           flex: 4,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: List.generate(entries.length, (i) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: _colors[i % _colors.length],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      entries[i].key,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF444441),
+            children: entries.asMap().entries.map((entry) {
+              int i = entry.key;
+              var val = entry.value;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: _colors[i % _colors.length],
+                        borderRadius: BorderRadius.circular(3),
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    '×${entries[i].value}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF888780),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        val.key,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF444441),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            )),
+                    Text(
+                      '×${val.value}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFB4B2A9),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],

@@ -260,7 +260,7 @@ class _HomeTabState extends State<_HomeTab> {
   Widget build(BuildContext context) {
     final provider = context.watch<DiaryProvider>();
     final last7 = provider.last7Days;
-    final hasRisk = provider.hasRiskFlag && _riskAlertsEnabled;
+    final hasRisk = provider.has3DaySadStreak && _riskAlertsEnabled;
     final isAnalyzing = provider.isAnalyzing;
 
     final suggestions = last7
