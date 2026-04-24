@@ -4,14 +4,15 @@ import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
 
 class StretchingScreen extends StatefulWidget {
-  const StretchingScreen({super.key});
+  final bool fromWellness;
+  const StretchingScreen({super.key, this.fromWellness = false});
 
   @override
   State<StretchingScreen> createState() => _StretchingScreenState();
 }
 
 class _StretchingScreenState extends State<StretchingScreen> {
-  static const int _totalSeconds = 7 * 60; // 7 min
+  static const int _totalSeconds = 7 * 60;
   int _remainingSeconds = _totalSeconds;
   Timer? _timer;
   bool _isRunning = false;
@@ -30,6 +31,17 @@ class _StretchingScreenState extends State<StretchingScreen> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+
+  void _handleBack() {
+    if (widget.fromWellness) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        fadeScaleRoute(const HomeScreen()),
+        (r) => false,
+      );
+    }
   }
 
   void _toggleTimer() {
@@ -77,10 +89,7 @@ class _StretchingScreenState extends State<StretchingScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            fadeScaleRoute(const HomeScreen()),
-            (r) => false,
-          ),
+          onPressed: _handleBack,
         ),
         title: const Text(
           'Recommended Activity',
@@ -89,7 +98,6 @@ class _StretchingScreenState extends State<StretchingScreen> {
       ),
       body: Column(
         children: [
-          // Orange header
           Container(
             color: color,
             padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
@@ -97,31 +105,23 @@ class _StretchingScreenState extends State<StretchingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Body Stretching',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
+                const Text('Body Stretching',
+                    style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
                 const SizedBox(height: 4),
-                Text(
-                  '7 min · Release tension in your body',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withOpacity(0.75),
-                  ),
-                ),
+                Text('7 min · Release tension in your body',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.75))),
               ],
             ),
           ),
-
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(24),
               children: [
-                // Icon
                 Center(
                   child: Container(
                     width: 100,
@@ -129,21 +129,14 @@ class _StretchingScreenState extends State<StretchingScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: color.withOpacity(0.1),
-                      border: Border.all(
-                        color: color.withOpacity(0.3),
-                        width: 2,
-                      ),
+                      border:
+                          Border.all(color: color.withOpacity(0.3), width: 2),
                     ),
-                    child: const Icon(
-                      Icons.accessibility_new,
-                      size: 44,
-                      color: color,
-                    ),
+                    child: const Icon(Icons.accessibility_new,
+                        size: 44, color: color),
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Tip banner
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -166,8 +159,6 @@ class _StretchingScreenState extends State<StretchingScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Timer card
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -176,15 +167,13 @@ class _StretchingScreenState extends State<StretchingScreen> {
                   ),
                   child: Row(
                     children: [
-                      Text(
-                        _timeDisplay,
-                        style: const TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w600,
-                          color: color,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
-                      ),
+                      Text(_timeDisplay,
+                          style: const TextStyle(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          )),
                       const SizedBox(width: 16),
                       Expanded(
                         child: ClipRRect(
@@ -193,8 +182,7 @@ class _StretchingScreenState extends State<StretchingScreen> {
                             value: _progress,
                             minHeight: 6,
                             backgroundColor: const Color(0xFFE0E0E0),
-                            valueColor:
-                                const AlwaysStoppedAnimation(color),
+                            valueColor: const AlwaysStoppedAnimation(color),
                           ),
                         ),
                       ),
@@ -209,29 +197,22 @@ class _StretchingScreenState extends State<StretchingScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _isRunning ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white,
-                            size: 24,
-                          ),
+                              _isRunning ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                              size: 24),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
-                const Text(
-                  'STEPS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF888780),
-                    letterSpacing: 1.2,
-                  ),
-                ),
+                const Text('STEPS',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF888780),
+                        letterSpacing: 1.2)),
                 const SizedBox(height: 12),
-
                 ...List.generate(_steps.length, (i) {
                   final isDone = i < _currentStep;
                   final isCurrent = i == _currentStep;
@@ -254,16 +235,13 @@ class _StretchingScreenState extends State<StretchingScreen> {
                             child: isDone
                                 ? const Icon(Icons.check,
                                     size: 14, color: Colors.white)
-                                : Text(
-                                    '${i + 1}',
+                                : Text('${i + 1}',
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: isCurrent
-                                          ? Colors.white
-                                          : const Color(0xFF888780),
-                                    ),
-                                  ),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isCurrent
+                                            ? Colors.white
+                                            : const Color(0xFF888780))),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -271,12 +249,11 @@ class _StretchingScreenState extends State<StretchingScreen> {
                           child: AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 300),
                             style: TextStyle(
-                              fontSize: 14,
-                              height: 1.6,
-                              color: (isDone || isCurrent)
-                                  ? const Color(0xFF1A1A2E)
-                                  : const Color(0xFFB4B2A9),
-                            ),
+                                fontSize: 14,
+                                height: 1.6,
+                                color: (isDone || isCurrent)
+                                    ? const Color(0xFF1A1A2E)
+                                    : const Color(0xFFB4B2A9)),
                             child: Text(_steps[i]),
                           ),
                         ),
@@ -284,17 +261,12 @@ class _StretchingScreenState extends State<StretchingScreen> {
                     ),
                   );
                 }),
-
                 const SizedBox(height: 24),
-
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                      fadeScaleRoute(const HomeScreen()),
-                      (r) => false,
-                    ),
+                    onPressed: _handleBack,
                     style: ElevatedButton.styleFrom(
                       backgroundColor:
                           _isCompleted ? color : color.withOpacity(0.4),
@@ -303,9 +275,12 @@ class _StretchingScreenState extends State<StretchingScreen> {
                           borderRadius: BorderRadius.circular(27)),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.check_circle_outline, size: 20),
+                    icon:
+                        const Icon(Icons.check_circle_outline, size: 20),
                     label: Text(
-                      _isCompleted ? 'Activity Complete!' : 'Mark as Complete',
+                      _isCompleted
+                          ? 'Activity Complete!'
+                          : 'Mark as Complete',
                       style: const TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w600),
                     ),

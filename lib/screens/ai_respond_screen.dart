@@ -5,6 +5,7 @@ import '../utils/transitions.dart';
 import '../utils/activityRouter.dart';
 import '../providers/diary_provider.dart';
 import 'home_screen.dart';
+import 'weeklyReport_screen.dart';
 
 class AiRespondScreen extends StatelessWidget {
   final DiaryEntry entry;
@@ -293,7 +294,7 @@ class AiRespondScreen extends StatelessWidget {
               if (!provider.shouldShowWeeklySummary) return const SizedBox();
               return GestureDetector(
                 onTap: () => Navigator.of(context).pushAndRemoveUntil(
-                  fadeScaleRoute(const HomeScreen(initialTab: 2)), // 直接去 Insights tab
+                  fadeScaleRoute(const WeeklyReportScreen()),
                   (r) => false,
                 ),
                 child: Container(

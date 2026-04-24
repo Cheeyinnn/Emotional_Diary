@@ -583,15 +583,13 @@ class _HomeTab extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            Navigator.of(context).push(slideUpRoute(const LogMoodScreen())),
+        onPressed: () => Navigator.of(context)
+            .push(slideUpRoute(const LogMoodScreen())),
         backgroundColor: const Color(0xFF1D9E75),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text(
-          'Log Mood',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        label: const Text('Log Mood',
+            style: TextStyle(fontWeight: FontWeight.w600)),
       ),
     );
   }

@@ -13,26 +13,25 @@ class ActivityRouter {
     String activityName, {
     String? duration,
     String? steps,
+    bool fromWellness = false,
   }) {
     final name = activityName.toLowerCase();
 
-    if (name.contains('breath')) {
-      return const BreathingScreen();
-    } else if (name.contains('walk') || name.contains('ground')) {
-      return const MindfulWalkScreen();
-    } else if (name.contains('gratitude') || name.contains('journal')) {
-      return const GratitudeJournalingScreen();
-    } else if (name.contains('creative') || name.contains('express')) {
-      return const CreativeExpressionScreen();
-    } else if (name.contains('meditat')) {
-      return const MeditationScreen();
-    } else if (name.contains('sleep') || name.contains('rest')) {
-      return const SleepHygieneScreen();
-    } else if (name.contains('stretch') || name.contains('body')) {
-      return const StretchingScreen();
-    } else if (name.contains('sleep') || name.contains('rest')) {
-      return const SleepHygieneScreen();
-    }
+      if (name.contains('breath')) {
+        return BreathingScreen(fromWellness: fromWellness);
+      } else if (name.contains('walk') || name.contains('ground')) {
+        return MindfulWalkScreen(fromWellness: fromWellness);
+      } else if (name.contains('gratitude') || name.contains('journal')) {
+        return GratitudeJournalingScreen(fromWellness: fromWellness);
+      } else if (name.contains('creative') || name.contains('express')) {
+        return CreativeExpressionScreen(fromWellness: fromWellness);
+      } else if (name.contains('meditat')) {
+        return MeditationScreen(fromWellness: fromWellness);
+      } else if (name.contains('sleep') || name.contains('rest')) {
+        return SleepHygieneScreen(fromWellness: fromWellness);
+      } else if (name.contains('stretch') || name.contains('body')) {
+        return StretchingScreen(fromWellness: fromWellness);
+      }
     
 
     // 通用页面 fallback
@@ -40,6 +39,7 @@ class ActivityRouter {
       name: activityName,
       duration: duration ?? '10 min',
       steps: steps ?? 'Take a moment to focus on this activity mindfully.',
+      fromWellness: fromWellness,
     );
   }
 
@@ -48,11 +48,12 @@ class ActivityRouter {
     String activityName, {
     String? duration,
     String? steps,
+    bool fromWellness = false,
   }) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => screenFor(activityName, duration: duration, steps: steps),
+        builder: (_) => screenFor(activityName, duration: duration, steps: steps, fromWellness: fromWellness),
       ),
     );
   }

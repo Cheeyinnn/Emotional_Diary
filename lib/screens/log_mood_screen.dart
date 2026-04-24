@@ -79,7 +79,6 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
   Future<void> _save() async {
     if (_isSaving) return;
-
     setState(() => _isSaving = true);
 
     final provider = context.read<DiaryProvider>();

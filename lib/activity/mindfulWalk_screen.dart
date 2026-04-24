@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../screens/home_screen.dart';
+import '../utils/transitions.dart';
 
 class MindfulWalkScreen extends StatefulWidget {
-  const MindfulWalkScreen({super.key});
+  final bool fromWellness;
+  const MindfulWalkScreen({super.key, this.fromWellness = false});
 
   @override
   State<MindfulWalkScreen> createState() => _MindfulWalkScreenState();
@@ -42,6 +45,17 @@ class _MindfulWalkScreenState extends State<MindfulWalkScreen>
     _timer?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _handleBack() {
+    if (widget.fromWellness) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(context).pushAndRemoveUntil(
+        fadeScaleRoute(const HomeScreen()),
+        (r) => false,
+      );
+    }
   }
 
   void _toggle() {
@@ -86,7 +100,7 @@ class _MindfulWalkScreenState extends State<MindfulWalkScreen>
         backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _handleBack,
         ),
         title: const Text('Mindful Walk',
             style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -149,15 +163,18 @@ class _MindfulWalkScreenState extends State<MindfulWalkScreen>
             // Step dots
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_steps.length, (i) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: i == _stepIndex ? 24 : 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: i <= _stepIndex ? accent : Colors.white24,
-                  borderRadius: BorderRadius.circular(4),
+              children: List.generate(
+                _steps.length,
+                (i) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: i == _stepIndex ? 24 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: i <= _stepIndex ? accent : Colors.white24,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              )),
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -165,7 +182,8 @@ class _MindfulWalkScreenState extends State<MindfulWalkScreen>
             // Timer
             Text(_timeLabel,
                 style: const TextStyle(
-                    color: Colors.white38, fontSize: 13,
+                    color: Colors.white38,
+                    fontSize: 13,
                     fontFamily: 'monospace')),
 
             const SizedBox(height: 24),
