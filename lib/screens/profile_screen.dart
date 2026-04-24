@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import '../utils/transitions.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../providers/diary_provider.dart';
 import '../services/pdf_export_service.dart';
-import 'welcome_screen.dart';
+import '../utils/transitions.dart';
+import 'signin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,63 +18,159 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _name = 'Au Xiao Xuan';
-  String _email = 'auxiaoxuan@gmail.com';
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+
+  String _name = 'Guest';
+  String _email = 'guest@emotiondiary.app';
+
   bool _dailyReminder = true;
-  TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
   bool _riskAlerts = true;
   bool _weeklyReport = true;
-  String _selectedGoal = 'Reduce stress';
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
 
-  final _goals = [
-    'Reduce stress',
-    'Better sleep',
-    'Improve mood',
-    'Build self-awareness',
-    'Track anxiety',
-  ];
+  String _wellnessGoal = 'Reduce Stress';
+
+  bool _isLoadingProfile = true;
+  bool _isSavingProfile = false;
 
   @override
   void initState() {
     super.initState();
-    _loadPrefs();
+    _loadProfile();
+    _loadSettings();
   }
 
-  Future<void> _loadPrefs() async {
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        _name = 'Guest';
+        _email = 'guest@emotiondiary.app';
+        _nameCtrl.text = _name;
+        _emailCtrl.text = _email;
+        _isLoadingProfile = false;
+      });
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final data = doc.data();
+
+      final firestoreName = data?['name']?.toString().trim();
+      final authName = user.displayName?.trim();
+      final authEmail = user.email?.trim();
+
+      setState(() {
+        _name = firestoreName?.isNotEmpty == true
+            ? firestoreName!
+            : authName?.isNotEmpty == true
+                ? authName!
+                : authEmail?.split('@').first ?? 'User';
+
+        _email = authEmail?.isNotEmpty == true
+            ? authEmail!
+            : data?['email']?.toString() ?? 'No email';
+
+        _nameCtrl.text = _name;
+        _emailCtrl.text = _email;
+        _isLoadingProfile = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingProfile = false);
+      _showSnackBar('Failed to load profile: $e', isError: true);
+    }
+  }
+
+  Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+
     setState(() {
-      _name = prefs.getString('user_name') ?? 'Au Xiao Xuan';
-      _email = prefs.getString('user_email') ?? 'auxiaoxuan@gmail.com';
       _dailyReminder = prefs.getBool('daily_reminder') ?? true;
       _riskAlerts = prefs.getBool('risk_alerts') ?? true;
       _weeklyReport = prefs.getBool('weekly_report') ?? true;
-      _selectedGoal = prefs.getString('goal') ?? 'Reduce stress';
-      final h = prefs.getInt('reminder_hour') ?? 21;
-      final m = prefs.getInt('reminder_minute') ?? 0;
-      _reminderTime = TimeOfDay(hour: h, minute: m);
+      _wellnessGoal = prefs.getString('wellness_goal') ?? 'Reduce Stress';
+
+      final hour = prefs.getInt('reminder_hour') ?? 21;
+      final minute = prefs.getInt('reminder_minute') ?? 0;
+      _reminderTime = TimeOfDay(hour: hour, minute: minute);
     });
   }
 
-  Future<void> _savePrefs() async {
+  Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', _name);
-    await prefs.setString('user_email', _email);
+
     await prefs.setBool('daily_reminder', _dailyReminder);
     await prefs.setBool('risk_alerts', _riskAlerts);
     await prefs.setBool('weekly_report', _weeklyReport);
-    await prefs.setString('goal', _selectedGoal);
+    await prefs.setString('wellness_goal', _wellnessGoal);
     await prefs.setInt('reminder_hour', _reminderTime.hour);
     await prefs.setInt('reminder_minute', _reminderTime.minute);
+  }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Settings saved!'),
-          backgroundColor: Color(0xFF1D9E75),
-          behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
-        ),
+  Future<void> _saveProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showSnackBar('Please sign in to edit your profile.', isError: true);
+      return;
+    }
+
+    final newName = _nameCtrl.text.trim();
+    final newEmail = _emailCtrl.text.trim();
+
+    if (newName.isEmpty || newEmail.isEmpty) {
+      _showSnackBar('Name and email cannot be empty.', isError: true);
+      return;
+    }
+
+    setState(() => _isSavingProfile = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'name': newName,
+        'email': newEmail,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await user.updateDisplayName(newName);
+
+      if (newEmail != user.email) {
+        await user.verifyBeforeUpdateEmail(newEmail);
+      }
+
+      setState(() {
+        _name = newName;
+        _email = newEmail;
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showSnackBar('Profile updated successfully.');
+    } on FirebaseAuthException catch (e) {
+      _showSnackBar(
+        e.code == 'requires-recent-login'
+            ? 'Please sign in again before changing email.'
+            : 'Failed to update profile: ${e.message}',
+        isError: true,
       );
+    } catch (e) {
+      _showSnackBar('Failed to update profile: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSavingProfile = false);
     }
   }
 
@@ -88,7 +187,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _reminderTime = picked);
+
+    if (picked == null) return;
+
+    setState(() => _reminderTime = picked);
+    await _saveSettings();
+
+    _showSnackBar('Reminder time saved.');
   }
 
   Future<void> _clearAllData() async {
@@ -97,46 +202,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Clear All Data?'),
         content: const Text(
-            'This will permanently delete all your diary entries and AI insights. This cannot be undone.'),
+          'This will permanently delete all your diary entries and AI insights. This cannot be undone.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(color: Color(0xFFE24B4A))),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Color(0xFFE24B4A)),
+            ),
           ),
         ],
       ),
     );
-    if (confirm == true && mounted) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('diary_entries');
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All data cleared.'),
-          backgroundColor: Color(0xFFE24B4A),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+
+    if (confirm != true) return;
+
+    try {
+      await context.read<DiaryProvider>().clearAllEntries();
+
+      if (!mounted) return;
+
+      _showSnackBar('All diary data has been cleared.', isError: true);
+    } catch (e) {
+      _showSnackBar('Failed to clear data: $e', isError: true);
     }
   }
 
   Future<void> _exportPdf() async {
     final provider = context.read<DiaryProvider>();
+
     if (provider.entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No entries to export yet!'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnackBar('No entries to export yet.');
       return;
     }
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -153,8 +257,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final path = await PdfExportService.exportDiary(provider.entries);
+
       if (!mounted) return;
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
+
       await Share.shareXFiles(
         [XFile(path)],
         subject: 'My Emotion Diary Export',
@@ -163,377 +269,498 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export failed: $e'),
-          backgroundColor: const Color(0xFFE24B4A),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _showSnackBar('Export failed: $e', isError: true);
     }
   }
 
-  void _signOut() {
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
     Navigator.of(context).pushAndRemoveUntil(
-      fadeScaleRoute(const WelcomeScreen()),
-      (r) => false,
+      fadeScaleRoute(const SignInScreen()),
+      (route) => false,
     );
+  }
+
+  void _showEditProfileDialog() {
+    _nameCtrl.text = _name;
+    _emailCtrl.text = _email;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isSavingProfile ? null : () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _isSavingProfile ? null : _saveProfile,
+            child: _isSavingProfile
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPrivacyDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Privacy Policy'),
+        content: const Text(
+          'Your diary entries are private and used only to provide mood tracking, AI reflection, and emotional insight features. Do not use this app as a replacement for professional mental health support.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showGoalPicker() {
+    final goals = [
+      'Reduce Stress',
+      'Improve Sleep',
+      'Build Positivity',
+      'Manage Anxiety',
+      'Understand Emotions',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Choose Wellness Goal',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A2E),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...goals.map(
+                (goal) => ListTile(
+                  title: Text(goal),
+                  trailing: _wellnessGoal == goal
+                      ? const Icon(Icons.check, color: Color(0xFF1D9E75))
+                      : null,
+                  onTap: () async {
+                    setState(() => _wellnessGoal = goal);
+                    await _saveSettings();
+
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _showSnackBar('Wellness goal updated.');
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isError ? const Color(0xFFE24B4A) : const Color(0xFF1D9E75),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  double _averageMood(List entries) {
+    if (entries.isEmpty) return 0;
+    final total = entries.fold<int>(0, (sum, e) => sum + e.mood as int);
+    return total / entries.length;
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<DiaryProvider>();
-    final totalEntries = provider.entries.length;
-    final avgMood = totalEntries == 0
-        ? 0.0
-        : provider.entries.map((e) => e.mood).reduce((a, b) => a + b) /
-            totalEntries;
+    final entries = provider.entries;
+    final avgMood = _averageMood(entries);
+    final weekCount = provider.last7Days.length;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Profile & Settings'),
-        actions: [
-          TextButton(
-            onPressed: _savePrefs,
-            child: const Text('Save',
-                style: TextStyle(
-                    color: Color(0xFF1D9E75), fontWeight: FontWeight.w600)),
-          ),
-        ],
+        title: const Text('Profile'),
+        backgroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // Avatar + stats
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1D9E75), Color(0xFF0F6E56)],
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
+      body: _isLoadingProfile
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1D9E75)),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(20),
               children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white.withOpacity(0.2),
-                      child: Text(
-                        _name.isNotEmpty ? _name[0].toUpperCase() : 'A',
-                        style: const TextStyle(
-                            fontSize: 32,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.edit,
-                            size: 14, color: Color(0xFF1D9E75)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(_name,
-                    style: const TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600)),
-                Text(_email,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.white.withOpacity(0.8))),
+                _profileHeader(),
                 const SizedBox(height: 20),
+
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _StatItem(
-                        value: totalEntries.toString(), label: 'Entries'),
-                    Container(width: 1, height: 32, color: Colors.white24),
-                    _StatItem(
-                        value: avgMood.toStringAsFixed(1), label: 'Avg Mood'),
-                    Container(width: 1, height: 32, color: Colors.white24),
-                    _StatItem(
-                        value: provider.last7Days.length.toString(),
-                        label: 'This Week'),
+                    _StatCard(
+                      label: 'Entries',
+                      value: entries.length.toString(),
+                      icon: Icons.book_outlined,
+                    ),
+                    const SizedBox(width: 10),
+                    _StatCard(
+                      label: 'Avg Mood',
+                      value: entries.isEmpty ? '-' : avgMood.toStringAsFixed(1),
+                      icon: Icons.mood_outlined,
+                    ),
+                    const SizedBox(width: 10),
+                    _StatCard(
+                      label: 'This Week',
+                      value: weekCount.toString(),
+                      icon: Icons.calendar_month_outlined,
+                    ),
                   ],
                 ),
+
+                const SizedBox(height: 24),
+
+                _sectionTitle('Account'),
+                _card(
+                  child: Column(
+                    children: [
+                      _TapTile(
+                        icon: Icons.edit_outlined,
+                        label: 'Edit Profile',
+                        onTap: _showEditProfileDialog,
+                      ),
+                      _divider(),
+                      _TapTile(
+                        icon: Icons.flag_outlined,
+                        label: 'Wellness Goal: $_wellnessGoal',
+                        onTap: _showGoalPicker,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _sectionTitle('Preferences'),
+                _card(
+                  child: Column(
+                    children: [
+                      _SwitchTile(
+                        icon: Icons.notifications_outlined,
+                        label: 'Daily Reminder',
+                        value: _dailyReminder,
+                        onChanged: (v) async {
+                          setState(() => _dailyReminder = v);
+                          await _saveSettings();
+                        },
+                      ),
+                      _divider(),
+                      _TapTile(
+                        icon: Icons.schedule_outlined,
+                        label: 'Reminder Time: ${_formatTime(_reminderTime)}',
+                        onTap: _pickTime,
+                      ),
+                      _divider(),
+                      _SwitchTile(
+                        icon: Icons.favorite_border,
+                        label: 'Risk Alerts',
+                        value: _riskAlerts,
+                        onChanged: (v) async {
+                          setState(() => _riskAlerts = v);
+                          await _saveSettings();
+                        },
+                      ),
+                      _divider(),
+                      _SwitchTile(
+                        icon: Icons.insights_outlined,
+                        label: 'Weekly AI Report',
+                        value: _weeklyReport,
+                        onChanged: (v) async {
+                          setState(() => _weeklyReport = v);
+                          await _saveSettings();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _sectionTitle('Data'),
+                _card(
+                  child: Column(
+                    children: [
+                      _TapTile(
+                        icon: Icons.picture_as_pdf_outlined,
+                        label: 'Export Diary as PDF',
+                        onTap: _exportPdf,
+                      ),
+                      _divider(),
+                      _TapTile(
+                        icon: Icons.privacy_tip_outlined,
+                        label: 'Privacy Policy',
+                        onTap: _showPrivacyDialog,
+                      ),
+                      _divider(),
+                      _TapTile(
+                        icon: Icons.delete_outline,
+                        label: 'Clear All Data',
+                        textColor: const Color(0xFFE24B4A),
+                        onTap: _clearAllData,
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                _card(
+                  child: _TapTile(
+                    icon: Icons.logout,
+                    label: 'Sign Out',
+                    textColor: const Color(0xFFE24B4A),
+                    onTap: _signOut,
+                  ),
+                ),
+
+                const SizedBox(height: 80),
               ],
             ),
-          ),
-          const SizedBox(height: 24),
+    );
+  }
 
-          // Personal info
-          _SectionHeader(title: 'Personal Info'),
-          _SettingsCard(
-            children: [
-              _EditableTile(
-                icon: Icons.person_outline,
-                label: 'Name',
-                value: _name,
-                onChanged: (v) => setState(() => _name = v),
-              ),
-              const Divider(height: 1, indent: 52),
-              _EditableTile(
-                icon: Icons.email_outlined,
-                label: 'Email',
-                value: _email,
-                onChanged: (v) => setState(() => _email = v),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+  Widget _profileHeader() {
+    final initial = _name.isNotEmpty ? _name[0].toUpperCase() : 'G';
 
-          // Goal
-          _SectionHeader(title: 'My Wellness Goal'),
-          _SettingsCard(
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1D9E75), Color(0xFF0F6E56)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _goals
-                      .map(
-                        (g) => GestureDetector(
-                          onTap: () => setState(() => _selectedGoal = g),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _selectedGoal == g
-                                  ? const Color(0xFF1D9E75)
-                                  : const Color(0xFFF0F0F0),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(g,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: _selectedGoal == g
-                                        ? Colors.white
-                                        : const Color(0xFF888780),
-                                    fontWeight: _selectedGoal == g
-                                        ? FontWeight.w600
-                                        : FontWeight.w400)),
-                          ),
-                        ),
-                      )
-                      .toList(),
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: Colors.white,
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F6E56),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFAEEDA),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    size: 13,
+                    color: Color(0xFFBA7517),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Notifications
-          _SectionHeader(title: 'Notifications'),
-          _SettingsCard(
-            children: [
-              _SwitchTile(
-                icon: Icons.notifications_outlined,
-                label: 'Daily Reminder',
-                subtitle: 'Reminds you to log your mood',
-                value: _dailyReminder,
-                onChanged: (v) => setState(() => _dailyReminder = v),
-              ),
-              if (_dailyReminder) ...[
-                const Divider(height: 1, indent: 52),
-                ListTile(
-                  leading: const Icon(Icons.access_time,
-                      color: Color(0xFF888780), size: 20),
-                  title: const Text('Reminder Time',
-                      style: TextStyle(fontSize: 13)),
-                  trailing: TextButton(
-                    onPressed: _pickTime,
-                    child: Text(
-                      _reminderTime.format(context),
-                      style: const TextStyle(
-                          color: Color(0xFF1D9E75),
-                          fontWeight: FontWeight.w600),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _email,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Emotion Diary User',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
-              const Divider(height: 1, indent: 52),
-              _SwitchTile(
-                icon: Icons.warning_amber_outlined,
-                label: 'Risk Alerts',
-                subtitle: 'Alert when mood is low for 3+ days',
-                value: _riskAlerts,
-                onChanged: (v) => setState(() => _riskAlerts = v),
-              ),
-              const Divider(height: 1, indent: 52),
-              _SwitchTile(
-                icon: Icons.summarize_outlined,
-                label: 'Weekly AI Report',
-                subtitle: 'Get your summary every Monday',
-                value: _weeklyReport,
-                onChanged: (v) => setState(() => _weeklyReport = v),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Data & Privacy
-          _SectionHeader(title: 'Data & Privacy'),
-          _SettingsCard(
-            children: [
-              _TapTile(
-                icon: Icons.picture_as_pdf_outlined,
-                label: 'Export Diary as PDF',
-                textColor: const Color(0xFF1D9E75),
-                onTap: _exportPdf,
-              ),
-              const Divider(height: 1, indent: 52),
-              _TapTile(
-                icon: Icons.lock_outline,
-                label: 'Privacy Policy',
-                onTap: () {},
-              ),
-              const Divider(height: 1, indent: 52),
-              _TapTile(
-                icon: Icons.delete_outline,
-                label: 'Clear All Data',
-                textColor: const Color(0xFFE24B4A),
-                onTap: _clearAllData,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Sign out
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: _signOut,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFE24B4A),
-                side: const BorderSide(color: Color(0xFFE24B4A)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-              ),
-              icon: const Icon(Icons.logout, size: 18),
-              label: const Text('Sign Out',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
-          const SizedBox(height: 32),
-
-          const Center(
-            child: Text('Emotion Diary v1.0.0 — UCCD3223 Group 39',
-                style: TextStyle(fontSize: 11, color: Color(0xFFB4B2A9))),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     );
   }
-}
 
-class _StatItem extends StatelessWidget {
-  final String value;
-  final String label;
-  const _StatItem({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value,
-            style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.white)),
-        Text(label,
-            style:
-                TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.7))),
-      ],
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _sectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(title,
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF888780),
-              letterSpacing: 0.5)),
+      padding: const EdgeInsets.only(bottom: 10, left: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF888780),
+        ),
+      ),
     );
   }
-}
 
-class _SettingsCard extends StatelessWidget {
-  final List<Widget> children;
-  const _SettingsCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _card({required Widget child}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
       ),
-      child: Column(children: children),
+      child: child,
+    );
+  }
+
+  Widget _divider() {
+    return const Divider(
+      height: 1,
+      thickness: 0.5,
+      color: Color(0xFFE0E0E0),
+      indent: 16,
+      endIndent: 16,
     );
   }
 }
 
-class _EditableTile extends StatelessWidget {
-  final IconData icon;
+class _StatCard extends StatelessWidget {
   final String label;
   final String value;
-  final ValueChanged<String> onChanged;
-  final TextInputType? keyboardType;
+  final IconData icon;
 
-  const _EditableTile({
-    required this.icon,
+  const _StatCard({
     required this.label,
     required this.value,
-    required this.onChanged,
-    this.keyboardType,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: const Color(0xFF888780), size: 20),
-      title: Text(label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),
-      subtitle: TextFormField(
-        initialValue: value,
-        onChanged: onChanged,
-        keyboardType: keyboardType,
-        style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF1A1A2E),
-            fontWeight: FontWeight.w500),
-        decoration: const InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.zero,
+    return Expanded(
+      child: Container(
+        height: 92,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: const Color(0xFF1D9E75), size: 22),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A2E),
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFF888780),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -543,14 +770,12 @@ class _EditableTile extends StatelessWidget {
 class _SwitchTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
   const _SwitchTile({
     required this.icon,
     required this.label,
-    required this.subtitle,
     required this.value,
     required this.onChanged,
   });
@@ -558,11 +783,18 @@ class _SwitchTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SwitchListTile(
-      secondary: Icon(icon, color: const Color(0xFF888780), size: 20),
-      title:
-          Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF1A1A2E))),
-      subtitle: Text(subtitle,
-          style: const TextStyle(fontSize: 11, color: Color(0xFFB4B2A9))),
+      secondary: Icon(
+        icon,
+        color: const Color(0xFF888780),
+        size: 20,
+      ),
+      title: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          color: Color(0xFF1A1A2E),
+        ),
+      ),
       value: value,
       onChanged: onChanged,
       activeColor: const Color(0xFF1D9E75),
@@ -587,14 +819,23 @@ class _TapTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading:
-          Icon(icon, color: textColor ?? const Color(0xFF888780), size: 20),
-      title: Text(label,
-          style: TextStyle(
-              fontSize: 13,
-              color: textColor ?? const Color(0xFF1A1A2E))),
-      trailing: const Icon(Icons.chevron_right,
-          color: Color(0xFFB4B2A9), size: 18),
+      leading: Icon(
+        icon,
+        color: textColor ?? const Color(0xFF888780),
+        size: 20,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          color: textColor ?? const Color(0xFF1A1A2E),
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right,
+        color: Color(0xFFB4B2A9),
+        size: 18,
+      ),
       onTap: onTap,
       dense: true,
     );

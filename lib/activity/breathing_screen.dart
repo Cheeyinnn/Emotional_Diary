@@ -1,8 +1,10 @@
 import 'dart:math';
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
 import '../screens/wellness_screen.dart';
+import '../providers/activity_provider.dart';
 
 enum BreathPhase { inhale, holdIn, exhale, holdOut }
 
@@ -126,6 +128,9 @@ class _BreathingScreenState extends State<BreathingScreen>
       setState(() => _cyclesCompleted++);
       if (_cyclesCompleted >= 4) {
         setState(() => _running = false);
+        context.read<ActivityProvider>().logActivity(
+          activityName: 'Box Breathing',
+        );
         return;
       }
     }

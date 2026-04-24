@@ -141,19 +141,7 @@ class _InsightScreenState extends State<InsightScreen> {
             _emptyCard('No summary yet. Log entries and tap refresh!'),
           const SizedBox(height: 20),
 
-          // Recent entries
-          if (entries.isNotEmpty) ...[
-            _sectionTitle('Recent Entries'),
-            const SizedBox(height: 10),
-            ...entries.take(5).map(
-                  (e) => GestureDetector(
-                    onTap: () => Navigator.of(context).push(slideRightRoute(MoodDetailScreen(entry: e))),
-                    child: _EntryTile(entry: e),
-                  ),
-                ),
-          ] else
-            _emptyCard('No entries this week.\nStart journaling to see your AI insights! 📔'),
-
+          
           const SizedBox(height: 32),
 
           // 在 Recent Entries 下面，SizedBox(height: 32) 之前加

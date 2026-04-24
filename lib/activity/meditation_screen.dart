@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
+import 'package:provider/provider.dart';
+import '../providers/activity_provider.dart';
 
 class MeditationScreen extends StatefulWidget {
   final bool fromWellness;
@@ -277,7 +279,12 @@ class _MeditationScreenState extends State<MeditationScreen>
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton.icon(
-                    onPressed: _handleBack,
+                    onPressed: () {
+                      context.read<ActivityProvider>().logActivity(
+                        activityName: 'Guided Meditation', // 各自名字
+                      );
+                      _handleBack();
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _isCompleted
                           ? const Color(0xFF534AB7)

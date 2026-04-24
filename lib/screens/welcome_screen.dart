@@ -1,10 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/transitions.dart';
 import 'home_screen.dart';
 import 'signin_screen.dart';
+import 'register_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
+
+  Future<void> _continueAsGuest(BuildContext context) async {
+    if (FirebaseAuth.instance.currentUser != null) {
+      await FirebaseAuth.instance.signOut();
+    }
+
+    if (!context.mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      fadeScaleRoute(const HomeScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +37,6 @@ class WelcomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Logo
                 Container(
                   width: 56,
                   height: 56,
@@ -31,10 +44,13 @@ class WelcomeScreen extends StatelessWidget {
                     color: const Color(0xFF1D9E75),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.spa_outlined, color: Colors.white, size: 28),
+                  child: const Icon(
+                    Icons.spa_outlined,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
                 const Spacer(),
-                // Tagline
                 const Text(
                   'Find Your\nInner Calm',
                   style: TextStyle(
@@ -54,7 +70,6 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                // Page dots
                 Row(
                   children: [
                     _dot(true),
@@ -65,7 +80,7 @@ class WelcomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 32),
-                // Get Started button
+
                 SizedBox(
                   width: double.infinity,
                   height: 54,
@@ -84,23 +99,28 @@ class WelcomeScreen extends StatelessWidget {
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Get Started',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
+                        Text(
+                          'Sign In',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         SizedBox(width: 8),
                         Icon(Icons.arrow_forward, size: 18),
                       ],
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 12),
-                // Continue as guest
+
                 SizedBox(
                   width: double.infinity,
                   height: 54,
                   child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pushReplacement(
-                      fadeScaleRoute(const HomeScreen()),
+                    onPressed: () => Navigator.of(context).push(
+                      fadeScaleRoute(const RegisterScreen()),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF1D9E75),
@@ -109,9 +129,37 @@ class WelcomeScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(27),
                       ),
                     ),
-                    child: const Text('Continue as Guest',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w500)),
+                    child: const Text(
+                      'Register',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: OutlinedButton(
+                    onPressed: () => _continueAsGuest(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1D9E75),
+                      side: const BorderSide(color: Color(0xFF1D9E75)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(27),
+                      ),
+                    ),
+                    child: const Text(
+                      'Continue as Guest',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
               ],

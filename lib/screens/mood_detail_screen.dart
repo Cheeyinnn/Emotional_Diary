@@ -24,7 +24,9 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
     super.initState();
     _entry = widget.entry;
     _slideCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 400));
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.08),
       end: Offset.zero,
@@ -42,8 +44,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
   Future<void> _openEdit() async {
     final updated = await Navigator.of(context).push<DiaryEntry>(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) =>
-            LogMoodScreen(existingEntry: _entry),
+        pageBuilder: (_, __, ___) => LogMoodScreen(existingEntry: _entry),
         transitionsBuilder: (_, anim, __, child) => SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0, 1),
@@ -54,6 +55,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
         transitionDuration: const Duration(milliseconds: 320),
       ),
     );
+
     if (updated != null) {
       setState(() => _entry = updated);
     }
@@ -65,22 +67,26 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Entry?'),
-        content:
-            const Text('This diary entry will be permanently deleted.'),
+        content: const Text('This diary entry will be permanently deleted.'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(color: Color(0xFFE24B4A))),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Color(0xFFE24B4A)),
+            ),
           ),
         ],
       ),
     );
+
     if (confirm == true && mounted) {
-      context.read<DiaryProvider>().deleteEntry(_entry.id);
+      await context.read<DiaryProvider>().deleteEntry(_entry.id);
+      if (!mounted) return;
       Navigator.of(context).pop();
     }
   }
@@ -88,9 +94,20 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
   @override
   Widget build(BuildContext context) {
     final months = [
-      'January','February','March','April','May','June',
-      'July','August','September','October','November','December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
     ];
+
     final dateStr =
         '${months[_entry.createdAt.month - 1]} ${_entry.createdAt.day}, ${_entry.createdAt.year}';
     final timeStr =
@@ -99,19 +116,18 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text(dateStr,
-            style: const TextStyle(fontSize: 15)),
+        title: Text(dateStr, style: const TextStyle(fontSize: 15)),
         actions: [
-          // Edit button
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: _openEdit,
             tooltip: 'Edit',
           ),
-          // Delete button
           IconButton(
-            icon: const Icon(Icons.delete_outline,
-                color: Color(0xFFE24B4A)),
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Color(0xFFE24B4A),
+            ),
             onPressed: _confirmDelete,
             tooltip: 'Delete',
           ),
@@ -124,42 +140,86 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Mood hero card
               _heroCard(timeStr),
               const SizedBox(height: 16),
 
-              // Diary text
               _card(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.edit_note,
-                            size: 18, color: Color(0xFF1D9E75)),
+                        Icon(
+                          Icons.edit_note,
+                          size: 18,
+                          color: Color(0xFF1D9E75),
+                        ),
                         SizedBox(width: 8),
-                        Text('My Entry',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1A1A2E))),
+                        Text(
+                          'My Entry',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A1A2E),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Text(
                       _entry.entryText,
                       style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF444441),
-                          height: 1.7),
+                        fontSize: 14,
+                        color: Color(0xFF444441),
+                        height: 1.7,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
 
-              // AI Reflection
-              if (_entry.aiReflection != null)
+              if (_entry.validation != null && _entry.validation!.trim().isNotEmpty)
+                _card(
+                  accent: const Color(0xFFFAF7EC),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.favorite_outline,
+                            size: 18,
+                            color: Color(0xFFBA7517),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Validation',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF633806),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _entry.validation!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF633806),
+                          height: 1.7,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (_entry.validation != null && _entry.validation!.trim().isNotEmpty)
+                const SizedBox(height: 12),
+
+              if (_entry.aiReflection != null && _entry.aiReflection!.trim().isNotEmpty)
                 _card(
                   accent: const Color(0xFFE1F5EE),
                   child: Column(
@@ -167,24 +227,31 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.auto_awesome,
-                              size: 18, color: Color(0xFF1D9E75)),
+                          Icon(
+                            Icons.auto_awesome,
+                            size: 18,
+                            color: Color(0xFF1D9E75),
+                          ),
                           SizedBox(width: 8),
-                          Text('AI Reflection',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF085041))),
+                          Text(
+                            'AI Reflection',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF085041),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
                         _entry.aiReflection!,
                         style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF0F6E56),
-                            height: 1.7,
-                            fontStyle: FontStyle.italic),
+                          fontSize: 14,
+                          color: Color(0xFF0F6E56),
+                          height: 1.7,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ],
                   ),
@@ -197,20 +264,145 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: Color(0xFF1D9E75)),
+                          strokeWidth: 1.5,
+                          color: Color(0xFF1D9E75),
+                        ),
                       ),
                       SizedBox(width: 10),
-                      Text('AI analysis in progress...',
-                          style: TextStyle(
-                              fontSize: 13, color: Color(0xFFB4B2A9))),
+                      Text(
+                        'AI analysis in progress...',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFB4B2A9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (_entry.aiReflection != null && _entry.aiReflection!.trim().isNotEmpty)
+                const SizedBox(height: 12),
+
+              if (_entry.patternInsight != null &&
+                  _entry.patternInsight!.trim().isNotEmpty)
+                _card(
+                  accent: const Color(0xFFEEEDFE),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.insights_outlined,
+                            size: 18,
+                            color: Color(0xFF534AB7),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Pattern Insight',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3D348B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _entry.patternInsight!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF3D348B),
+                          height: 1.7,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (_entry.patternInsight != null &&
+                  _entry.patternInsight!.trim().isNotEmpty)
+                const SizedBox(height: 12),
+
+              if (_entry.activitySuggestion != null &&
+                  _entry.activitySuggestion!.trim().isNotEmpty)
+                _card(
+                  accent: const Color(0xFFEFF8F3),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.spa_outlined,
+                            size: 18,
+                            color: Color(0xFF1D9E75),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Suggested Activity',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF085041),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _entry.activitySuggestion!,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF085041),
+                              ),
+                            ),
+                          ),
+                          if (_entry.activityDuration != null &&
+                              _entry.activityDuration!.trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                _entry.activityDuration!,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1D9E75),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (_entry.activitySteps != null &&
+                          _entry.activitySteps!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _entry.activitySteps!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF444441),
+                            height: 1.6,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
 
               const SizedBox(height: 24),
 
-              // Edit button at bottom
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -220,11 +412,14 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
                     foregroundColor: const Color(0xFF1D9E75),
                     side: const BorderSide(color: Color(0xFF1D9E75)),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit This Entry',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  label: const Text(
+                    'Edit This Entry',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -242,39 +437,55 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
         color: _entry.moodColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-            color: _entry.moodColor.withOpacity(0.3), width: 1),
+          color: _entry.moodColor.withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
           Hero(
             tag: 'mood_emoji_${_entry.id}',
-            child: Text(_entry.moodEmoji,
-                style: const TextStyle(fontSize: 56)),
+            child: Text(
+              _entry.moodEmoji,
+              style: const TextStyle(fontSize: 56),
+            ),
           ),
           const SizedBox(height: 8),
-          Text(_entry.moodLabel,
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: _entry.moodColor)),
+          Text(
+            _entry.moodLabel,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: _entry.moodColor,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(timeStr,
-              style: const TextStyle(
-                  fontSize: 12, color: Color(0xFF888780))),
+          Text(
+            timeStr,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF888780),
+            ),
+          ),
           if (_entry.emotionIntensity != null) ...[
             const SizedBox(height: 16),
             Row(
               children: [
-                const Text('Emotion Intensity',
-                    style: TextStyle(
-                        fontSize: 12, color: Color(0xFF888780))),
+                const Text(
+                  'Emotion Intensity',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF888780),
+                  ),
+                ),
                 const Spacer(),
                 Text(
                   '${_entry.emotionIntensity!.toStringAsFixed(1)} / 10',
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _entry.moodColor),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _entry.moodColor,
+                  ),
                 ),
               ],
             ),
@@ -289,11 +500,14 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
               ),
             ),
           ],
-          if (_entry.triggerKeyword != null) ...[
+          if (_entry.triggerKeyword != null &&
+              _entry.triggerKeyword!.trim().isNotEmpty) ...[
             const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 6),
+                horizontal: 12,
+                vertical: 6,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
@@ -301,14 +515,20 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.bolt,
-                      size: 14, color: Color(0xFFBA7517)),
+                  const Icon(
+                    Icons.bolt,
+                    size: 14,
+                    color: Color(0xFFBA7517),
+                  ),
                   const SizedBox(width: 4),
-                  Text('# ${_entry.triggerKeyword}',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF633806),
-                          fontWeight: FontWeight.w500)),
+                  Text(
+                    '# ${_entry.triggerKeyword}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF633806),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -318,14 +538,19 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
     );
   }
 
-  Widget _card({required Widget child, Color? accent}) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: accent ?? Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+  Widget _card({required Widget child, Color? accent}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: accent ?? Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE0E0E0),
+          width: 0.5,
         ),
-        child: child,
-      );
+      ),
+      child: child,
+    );
+  }
 }

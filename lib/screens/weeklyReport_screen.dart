@@ -13,16 +13,20 @@ class WeeklyReportScreen extends StatefulWidget {
 }
 
 class _WeeklyReportScreenState extends State<WeeklyReportScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<DiaryProvider>();
-      if (provider.weeklySummary == null && !provider.isLoadingWeekly) {
-        provider.loadWeeklySummary();
-      }
-    });
-  }
+  
+   @override
+    void initState() {
+      super.initState();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final provider = context.read<DiaryProvider>();
+        // ── FIX 2: also reload if summary is stale (older than 12 hours) ──────
+        if (provider.weeklySummary == null ||
+            provider.isWeeklySummaryStale &&
+                !provider.isLoadingWeekly) {
+          provider.loadWeeklySummary();
+        }
+      });
+    }
 
   @override
   Widget build(BuildContext context) {
