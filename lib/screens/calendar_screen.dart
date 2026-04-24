@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'mood_detail_screen.dart';
+import 'log_mood_screen.dart'; // 导入记录页
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -102,9 +103,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     } catch (_) {}
 
                     return GestureDetector(
-                      onTap: entry != null
-                          ? () => Navigator.of(ctx).push(slideRightRoute(MoodDetailScreen(entry: entry!)))
-                          : null,
+                      onTap: () {
+                        if (entry != null) {
+                          // 如果已有记录，跳转到详情页
+                          Navigator.of(ctx).push(slideRightRoute(MoodDetailScreen(entry: entry!)));
+                        } else {
+                          // 如果没有记录，跳转到记录页，并传入该格子的日期
+                          Navigator.of(ctx).push(slideRightRoute(LogMoodScreen(customDate: date)));
+                        }
+                      },
                       child: _CalendarDay(
                           day: dayNum, entry: entry, isToday: isToday),
                     );
