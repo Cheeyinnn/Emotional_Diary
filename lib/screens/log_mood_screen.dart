@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'ai_respond_screen.dart';
+import 'mood_detail_screen.dart';
 
-/// Used for both creating a new entry AND editing an existing one.
-/// Pass [existingEntry] to enter edit mode.
 class LogMoodScreen extends StatefulWidget {
   final DiaryEntry? existingEntry;
-  final DateTime? customDate; // 新增：用于接收补录的日期
-  const LogMoodScreen({super.key, this.existingEntry, this.customDate});
+  final DateTime? customDate;
+
+  const LogMoodScreen({
+    super.key,
+    this.existingEntry,
+    this.customDate,
+  });
 
   bool get isEditing => existingEntry != null;
 
@@ -22,6 +27,8 @@ class _LogMoodScreenState extends State<LogMoodScreen>
   int _selectedMood = 2;
   final _textCtrl = TextEditingController();
   bool _isSaving = false;
+  bool _alreadyCheckedToday = false;
+
   late AnimationController _emojiAnimCtrl;
   late Animation<double> _emojiScale;
 
@@ -52,6 +59,10 @@ class _LogMoodScreenState extends State<LogMoodScreen>
     _emojiScale = Tween<double>(begin: 1.0, end: 1.3).animate(
       CurvedAnimation(parent: _emojiAnimCtrl, curve: Curves.easeOut),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _redirectIfAlreadyLogged();
+    });
   }
 
   @override
@@ -59,6 +70,41 @@ class _LogMoodScreenState extends State<LogMoodScreen>
     _textCtrl.dispose();
     _emojiAnimCtrl.dispose();
     super.dispose();
+  }
+
+  DateTime get _targetDate => widget.customDate ?? DateTime.now();
+
+  bool _sameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  DiaryEntry? _findExistingEntryForTargetDate(DiaryProvider provider) {
+    try {
+      return provider.entries.firstWhere(
+        (e) => _sameDate(e.createdAt, _targetDate),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _redirectIfAlreadyLogged() {
+    if (!mounted) return;
+    if (_alreadyCheckedToday) return;
+    if (widget.isEditing) return;
+
+    _alreadyCheckedToday = true;
+
+    final provider = context.read<DiaryProvider>();
+    final existingEntry = _findExistingEntryForTargetDate(provider);
+
+    if (existingEntry != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => MoodDetailScreen(entry: existingEntry),
+        ),
+      );
+    }
   }
 
   void _selectMood(int i) {
@@ -110,11 +156,23 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
         Navigator.of(context).pop(updatedEntry);
       } else {
-        // 修改点：在 addEntry 中加入 createdAt 参数，传入补录日期
+        final existingEntry = _findExistingEntryForTargetDate(provider);
+
+        if (existingEntry != null) {
+          if (!mounted) return;
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => MoodDetailScreen(entry: existingEntry),
+            ),
+          );
+          return;
+        }
+
         final data = await provider.addEntry(
           entryText: text,
           mood: _selectedMood,
-          createdAt: widget.customDate, 
+          createdAt: widget.customDate,
         );
 
         final baseEntry = data['entry'] as DiaryEntry;
@@ -217,6 +275,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
                   textAlign: TextAlign.center,
                 ),
               ),
+
               const SizedBox(height: 8),
 
               ScaleTransition(
@@ -244,6 +303,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
                 ),
                 child: Text(mood['label'] as String),
               ),
+
               const SizedBox(height: 28),
 
               Row(
@@ -376,6 +436,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
                   ),
                 ),
               ),
+
               const SizedBox(height: 16),
             ],
           ),
@@ -384,10 +445,3 @@ class _LogMoodScreenState extends State<LogMoodScreen>
     );
   }
 }
-
-PageRouteBuilder _fadeRoute(Widget page) => PageRouteBuilder(
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, anim, __, child) =>
-          FadeTransition(opacity: anim, child: child),
-      transitionDuration: const Duration(milliseconds: 300),
-    );

@@ -783,8 +783,20 @@ class _HomeTabState extends State<_HomeTab> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            Navigator.of(context).push(slideUpRoute(const LogMoodScreen())),
+        onPressed: () {
+  final provider = context.read<DiaryProvider>();
+  final todayEntry = provider.todayEntry;
+
+  if (todayEntry != null) {
+    Navigator.of(context).push(
+      slideRightRoute(MoodDetailScreen(entry: todayEntry)),
+    );
+  } else {
+    Navigator.of(context).push(
+      slideUpRoute(const LogMoodScreen()),
+    );
+  }
+},
         backgroundColor: const Color(0xFF1D9E75),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
