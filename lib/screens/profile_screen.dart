@@ -473,16 +473,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Daily Reminder',
                         value: _dailyReminder,
                         onChanged: (v) async {
-                          setState(() => _dailyReminder = v);
+  setState(() => _dailyReminder = v);
 
-                          await _saveSettings();
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('daily_reminder', v);
 
-                          _showSnackBar(
-                            v
-                                ? 'Daily reminder set at ${_formatTime(_reminderTime)}.'
-                                : 'Daily reminder turned off.',
-                          );
-                        },
+  if (v) {
+    await NotificationService.scheduleDailyReminder(
+      hour: _reminderTime.hour,
+      minute: _reminderTime.minute,
+    );
+
+    _showSnackBar(
+      'Daily reminder set at ${_formatTime(_reminderTime)}.',
+    );
+  } else {
+    await NotificationService.cancelDailyReminder();
+
+    _showSnackBar('Daily reminder turned off.');
+  }
+},
                       ),
                       _divider(),
                       _TapTile(
