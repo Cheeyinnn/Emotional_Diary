@@ -891,14 +891,20 @@ class _MoodWeekRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+
+    // Sunday-based week start
+    // DateTime.weekday: Mon = 1, Tue = 2, ..., Sun = 7
+    // weekday % 7 makes Sun = 0, Mon = 1, Tue = 2 ...
+    final startOffset = now.weekday % 7;
+    final weekStart = now.subtract(Duration(days: startOffset));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
         final day = weekStart.add(Duration(days: i));
+
         DiaryEntry? entry;
         try {
           entry = entries.firstWhere(
@@ -910,7 +916,9 @@ class _MoodWeekRow extends StatelessWidget {
         } catch (_) {}
 
         final isToday =
-            day.day == now.day && day.month == now.month && day.year == now.year;
+            day.day == now.day &&
+            day.month == now.month &&
+            day.year == now.year;
 
         return GestureDetector(
           onTap: entry != null
@@ -938,7 +946,9 @@ class _MoodWeekRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: entry != null
                       ? entry.moodColor.withOpacity(0.15)
-                      : const Color(0xFFF0F0F0),
+                      : isToday
+                          ? const Color(0xFFE1F5EE)
+                          : const Color(0xFFF0F0F0),
                   border: isToday
                       ? Border.all(
                           color: const Color(0xFF1D9E75),
@@ -954,9 +964,13 @@ class _MoodWeekRow extends StatelessWidget {
                         )
                       : Text(
                           day.day.toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFFB4B2A9),
+                            color: isToday
+                                ? const Color(0xFF1D9E75)
+                                : const Color(0xFFB4B2A9),
+                            fontWeight:
+                                isToday ? FontWeight.w700 : FontWeight.w400,
                           ),
                         ),
                 ),
