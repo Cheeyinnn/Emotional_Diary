@@ -22,7 +22,7 @@ class _SleepHygieneScreenState extends State<SleepHygieneScreen> {
   int _currentStep = 0;
 
   final List<String> _steps = [
-    'Dim your screen brightness and put your phone face-down.',
+    'Find a comfortable position and dim your room lights.',
     'Write down one thing you want to let go of before sleeping.',
     'Do a quick body scan — relax each muscle from head to toe.',
     'Set a consistent bedtime alarm for tomorrow.',

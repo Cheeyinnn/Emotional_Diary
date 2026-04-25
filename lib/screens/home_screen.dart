@@ -19,6 +19,7 @@ import 'mood_detail_screen.dart';
 import 'search_screen.dart';
 import '../utils/activityRouter.dart';
 import 'wellness_screen.dart';
+import 'activityHistory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final int initialTab;
@@ -649,12 +650,12 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
                         const SizedBox(width: 12),
                         _ActionCard(
-                          icon: Icons.air,
-                          label: 'Breathe',
+                          icon: Icons.history,
+                          label: 'History',
                           color: const Color(0xFFEEEDFE),
                           iconColor: const Color(0xFF534AB7),
                           onTap: () => Navigator.of(context).push(
-                            slideUpRoute(const BreathingScreen()),
+                            slideRightRoute(const ActivityHistoryScreen()),
                           ),
                         ),
                       ],

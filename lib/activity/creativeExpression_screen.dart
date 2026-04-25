@@ -51,11 +51,15 @@ class _CreativeExpressionScreenState extends State<CreativeExpressionScreen> {
       );
       return;
     }
-      context.read<ActivityProvider>().logActivity(
-        activityName: 'Creative Expression',
-        userContent: _controller.text.trim(),
-      );
-      setState(() => _done = true);
+
+    // ── Store prompt + answer together using ||| as separator ─────────────
+    // Format: "prompt question|||user's written answer"
+    // ActivityHistoryScreen splits on ||| to display prompt and answer separately
+    context.read<ActivityProvider>().logActivity(
+      activityName: 'Creative Expression',
+      userContent: '${_prompts[_promptIndex]}|||${_controller.text.trim()}',
+    );
+    setState(() => _done = true);
   }
 
   void _handleBack() {
@@ -197,6 +201,9 @@ class _CreativeExpressionScreenState extends State<CreativeExpressionScreen> {
   }
 
   Widget _buildDone() {
+    // Extract just the answer part for display (strip the prompt prefix)
+    final displayText = _controller.text.trim();
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -216,16 +223,45 @@ class _CreativeExpressionScreenState extends State<CreativeExpressionScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: Colors.white54, fontSize: 14, height: 1.6)),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Show prompt used
             Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _accent.withOpacity(0.3), width: 1),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.lightbulb_outline,
+                      color: _accent, size: 13),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _prompts[_promptIndex],
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Show the answer
+            Container(
+              width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: _accent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(16),
-                border:
-                    Border.all(color: _accent.withOpacity(0.3), width: 1),
+                border: Border.all(color: _accent.withOpacity(0.3), width: 1),
               ),
-              child: Text(_controller.text,
+              child: Text(displayText,
                   style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
