@@ -77,16 +77,6 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Row(
-                    children: [
-                      _dot(true),
-                      const SizedBox(width: 6),
-                      _dot(false),
-                      const SizedBox(width: 6),
-                      _dot(false),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
 
                   SizedBox(
                     width: double.infinity,
@@ -177,15 +167,4 @@ class WelcomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  Widget _dot(bool active) => Container(
-        width: active ? 24 : 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: active
-              ? const Color(0xFF1D9E75)
-              : const Color(0xFF1D9E75).withOpacity(0.3),
-          borderRadius: BorderRadius.circular(4),
-        ),
-      );
 }
