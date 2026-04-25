@@ -369,7 +369,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
               Expanded(
                 child: Container(
-                  constraints: const BoxConstraints(minHeight: 120),
+                  constraints: const BoxConstraints(minHeight: 90),
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
