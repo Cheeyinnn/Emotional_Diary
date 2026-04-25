@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
@@ -32,6 +33,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late int _selectedIndex;
   int _homeRefreshKey = 0;
+  DateTime? _lastBackPress;
 
   @override
   void initState() {
@@ -51,10 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
         final screens = [
           _HomeTab(
             key: ValueKey('home_$authKey$_homeRefreshKey'),
-            refreshKey: _homeRefreshKey,  
+            refreshKey: _homeRefreshKey,
             onNavigateToCalendar: () {
               setState(() {
-                _selectedIndex = 1; // 3. Switches the active tab to Calendar
+                _selectedIndex = 1;
               });
             },
           ),
@@ -67,17 +69,50 @@ class _HomeScreenState extends State<HomeScreen> {
         ];
 
         return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, result) {
-            if (didPop) return;
+  canPop: false,
+  onPopInvokedWithResult: (didPop, result) {
+    if (didPop) return;
 
-            if (_selectedIndex != 0) {
-              setState(() {
-                _selectedIndex = 0;
-                _homeRefreshKey++;
-              });
-            }
-          },
+    // 👉 If NOT on Home → go Home first
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+        _homeRefreshKey++;
+      });
+
+      // reset back timer
+      _lastBackPress = null;
+      return;
+    }
+
+    final now = DateTime.now();
+
+    // 👉 FIRST time on Home → exit directly
+    if (_lastBackPress == null) {
+      _lastBackPress = now;
+
+      SystemNavigator.pop(); // 🔥 direct exit (no message)
+      return;
+    }
+
+    // 👉 If user came back to Home from other tab
+    if (now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Press back again to exit'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      return;
+    }
+
+    // 👉 Second press within 2s → exit
+    SystemNavigator.pop();
+  },
           child: Scaffold(
             body: IndexedStack(index: _selectedIndex, children: screens),
             bottomNavigationBar: Container(
@@ -896,14 +931,20 @@ class _MoodWeekRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+
+    // Sunday-based week start
+    // DateTime.weekday: Mon = 1, Tue = 2, ..., Sun = 7
+    // weekday % 7 makes Sun = 0, Mon = 1, Tue = 2 ...
+    final startOffset = now.weekday % 7;
+    final weekStart = now.subtract(Duration(days: startOffset));
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
         final day = weekStart.add(Duration(days: i));
+
         DiaryEntry? entry;
         try {
           entry = entries.firstWhere(
@@ -915,7 +956,9 @@ class _MoodWeekRow extends StatelessWidget {
         } catch (_) {}
 
         final isToday =
-            day.day == now.day && day.month == now.month && day.year == now.year;
+            day.day == now.day &&
+            day.month == now.month &&
+            day.year == now.year;
 
         return GestureDetector(
           onTap: entry != null
@@ -943,7 +986,9 @@ class _MoodWeekRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: entry != null
                       ? entry.moodColor.withOpacity(0.15)
-                      : const Color(0xFFF0F0F0),
+                      : isToday
+                          ? const Color(0xFFE1F5EE)
+                          : const Color(0xFFF0F0F0),
                   border: isToday
                       ? Border.all(
                           color: const Color(0xFF1D9E75),
@@ -959,9 +1004,13 @@ class _MoodWeekRow extends StatelessWidget {
                         )
                       : Text(
                           day.day.toString(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFFB4B2A9),
+                            color: isToday
+                                ? const Color(0xFF1D9E75)
+                                : const Color(0xFFB4B2A9),
+                            fontWeight:
+                                isToday ? FontWeight.w700 : FontWeight.w400,
                           ),
                         ),
                 ),

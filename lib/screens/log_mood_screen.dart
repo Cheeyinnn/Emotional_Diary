@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
@@ -183,26 +182,15 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
         if (!mounted) return;
 
-        final isGuest = FirebaseAuth.instance.currentUser == null;
-
-        if (isGuest) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => MoodDetailScreen(entry: updatedEntry),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AiRespondScreen(
+              entry: updatedEntry,
+              aiData: aiResult,
             ),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => AiRespondScreen(
-                entry: updatedEntry,
-                aiData: aiResult,
-              ),
-            ),
-          );
-        }
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -239,12 +227,22 @@ class _LogMoodScreenState extends State<LogMoodScreen>
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 28),
+                    // Shrink the space to 8 if editing, otherwise keep it 28
+                    SizedBox(height: widget.isEditing ? 8 : 28),
 
               if (widget.isEditing)
                 Container(
@@ -371,6 +369,7 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
               Expanded(
                 child: Container(
+                  constraints: const BoxConstraints(minHeight: 90),
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -450,9 +449,14 @@ class _LogMoodScreenState extends State<LogMoodScreen>
               ),
 
               const SizedBox(height: 16),
-            ],
-          ),
-        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }, // Closes LayoutBuilder's builder
+        ), // Closes LayoutBuilder
       ),
     );
   }

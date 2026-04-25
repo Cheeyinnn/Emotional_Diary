@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/transitions.dart';
+import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import 'signin_screen.dart';
 import 'register_screen.dart';
@@ -23,8 +24,12 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
-      child: Scaffold(
+  canPop: false,
+  onPopInvokedWithResult: (didPop, result) {
+    if (didPop) return;
+    SystemNavigator.pop();
+  },
+  child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
