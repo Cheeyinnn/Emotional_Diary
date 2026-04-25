@@ -1,10 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class ActivityLog {
   final String id;
   final String activityName;
   final DateTime completedAt;
-  final String? userContent; // for Gratitude & Creative Expression
+  final String? userContent;
 
   ActivityLog({
     required this.id,
@@ -53,17 +54,39 @@ class ActivityLog {
 
   // ── Serialization ─────────────────────────────────────────────────────────
 
+  /// For writing TO Firestore — use Timestamp, not ISO string
+  Map<String, dynamic> toFirestore() => {
+        'activityName': activityName,
+        'completedAt': Timestamp.fromDate(completedAt),
+        'userContent': userContent,
+      };
+
+  /// For reading FROM Firestore — handles both Timestamp and legacy ISO string
+  factory ActivityLog.fromMap(Map<String, dynamic> map) {
+    DateTime parsedDate;
+    final raw = map['completedAt'];
+    if (raw is Timestamp) {
+      parsedDate = raw.toDate();
+    } else if (raw is String) {
+      // legacy SharedPreferences data
+      parsedDate = DateTime.parse(raw);
+    } else {
+      parsedDate = DateTime.now();
+    }
+
+    return ActivityLog(
+      id: map['id'] as String? ?? '',
+      activityName: map['activityName'] as String,
+      completedAt: parsedDate,
+      userContent: map['userContent'] as String?,
+    );
+  }
+
+  /// Legacy — kept for backward compatibility if needed
   Map<String, dynamic> toMap() => {
         'id': id,
         'activityName': activityName,
         'completedAt': completedAt.toIso8601String(),
         'userContent': userContent,
       };
-
-  factory ActivityLog.fromMap(Map<String, dynamic> map) => ActivityLog(
-        id: map['id'] as String,
-        activityName: map['activityName'] as String,
-        completedAt: DateTime.parse(map['completedAt'] as String),
-        userContent: map['userContent'] as String?,
-      );
 }

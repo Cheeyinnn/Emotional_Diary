@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../utils/transitions.dart';
 import '../services/auth_service.dart';
+import '../providers/activity_provider.dart';
 import '../providers/diary_provider.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -21,7 +22,6 @@ class _SignInScreenState extends State<SignInScreen> {
   final AuthService _authService = AuthService();
 
   bool _obscure = true;
-  bool _remember = false;
   bool _isLoading = false;
 
   @override
@@ -52,8 +52,10 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       await _authService.signIn(email, password);
 
-      // IMPORTANT: DO NOT migrate here
-      // await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
+      if (!mounted) return;
+
+      // Load activity logs from Firestore after sign in
+      await context.read<ActivityProvider>().loadLogs();
 
       if (!mounted) return;
 
@@ -182,7 +184,22 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _resetPassword,
+                    child: const Text(
+                      'Forgot password?',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF1D9E75),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
 
                 SizedBox(
                   width: double.infinity,

@@ -302,6 +302,7 @@ class _HomeTabState extends State<_HomeTab> {
   Widget build(BuildContext context) {
     final provider = context.watch<DiaryProvider>();
     final last7 = provider.last7Days;
+    final recentEntries = provider.recentEntries;
     final hasRisk = provider.has3DaySadStreak && _riskAlertsEnabled;
     final isAnalyzing = provider.isAnalyzing;
 
@@ -311,6 +312,7 @@ class _HomeTabState extends State<_HomeTab> {
         .toSet()
         .take(2)
         .toList();
+
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -732,7 +734,7 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
             ),
-            if (last7.isNotEmpty) ...[
+            if (recentEntries.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -762,9 +764,11 @@ class _HomeTabState extends State<_HomeTab> {
                 ),
               ),
               SliverList(
+                
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) {
-                    final e = last7[i];
+                    final e = recentEntries[i]; 
+                    
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                       child: GestureDetector(
@@ -775,7 +779,7 @@ class _HomeTabState extends State<_HomeTab> {
                       ),
                     );
                   },
-                  childCount: last7.take(3).length,
+                  childCount: recentEntries.length, 
                 ),
               ),
             ],

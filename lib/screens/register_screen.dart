@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../utils/transitions.dart';
 import '../services/auth_service.dart';
+import '../providers/activity_provider.dart';
 import '../providers/diary_provider.dart';
 import 'signin_screen.dart';
 
@@ -62,9 +63,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await _authService.register(name, email, password);
 
-      // Move guest diary into this new account
       if (!mounted) return;
       await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
+
+      if (!mounted) return;
+
+      // New account starts empty — loadLogs is a no-op but keeps things consistent
+      await context.read<ActivityProvider>().loadLogs();
 
       if (!mounted) return;
 

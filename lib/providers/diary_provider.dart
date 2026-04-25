@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../models/diary_entry.dart';
 import '../services/ai_service.dart';
 
@@ -208,7 +206,6 @@ class DiaryProvider extends ChangeNotifier {
   //   (b) the user's oldest entry is at least 3 days ago (real 3-day window)
   bool get shouldShowWeeklySummary {
     if (hasRiskFlag) return true;
-    
     
     final uniqueDays = last7Days
         .map((e) => DateTime(e.createdAt.year, e.createdAt.month, e.createdAt.day))
@@ -603,6 +600,23 @@ class DiaryProvider extends ChangeNotifier {
       final mood = getMoodForDate(date);
       return mood != null && mood <= 2;
     }).length;
+  }
+
+    List<DiaryEntry> get recentEntries {
+    // 按日期分组，每天只保留最新一条
+    final Map<String, DiaryEntry> byDay = {};
+    for (final e in _entries) {
+      final key = '${e.createdAt.year}-${e.createdAt.month}-${e.createdAt.day}';
+      if (!byDay.containsKey(key)) {
+        byDay[key] = e; // _entries 已降序，第一条就是最新
+      }
+    }
+
+    // 按时间降序排，取前3
+    final result = byDay.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return result.take(3).toList();
   }
 
 
