@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../providers/diary_provider.dart';
 import '../models/diary_entry.dart';
 import 'ai_respond_screen.dart';
-import 'mood_detail_screen.dart';
+import 'mood_detail_screen.dart'
+;
 
 class LogMoodScreen extends StatefulWidget {
   final DiaryEntry? existingEntry;
@@ -182,16 +184,28 @@ class _LogMoodScreenState extends State<LogMoodScreen>
 
         if (!mounted) return;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AiRespondScreen(
-              entry: updatedEntry,
-              aiData: aiResult,
-            ),
-          ),
-        );
-      }
+        final isGuest = FirebaseAuth.instance.currentUser == null;
+
+if (isGuest) {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => MoodDetailScreen(entry: updatedEntry),
+    ),
+  );
+} else {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => AiRespondScreen(
+        entry: updatedEntry,
+        aiData: aiResult,
+      ),
+    ),
+  );  
+  }
+}
+
     } catch (e) {
       if (!mounted) return;
 
