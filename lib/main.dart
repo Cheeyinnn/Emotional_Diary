@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'firebase_options.dart';
 import 'providers/diary_provider.dart';
 import 'providers/activity_provider.dart';
-import 'screens/auth_wrapper.dart';
+import 'services/notification_service.dart';
+
+import 'screens/welcome_screen.dart';
+import 'screens/home_screen.dart'; // CHANGE this to your real main/home screen
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +20,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  await NotificationService.init();
 
   runApp(
     MultiProvider(
@@ -35,7 +41,7 @@ class EmotionDiaryApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'COOKIE LAB',
+      title: 'Emotion Diary',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1D9E75),
@@ -57,6 +63,34 @@ class EmotionDiaryApp extends StatelessWidget {
         ),
       ),
       home: const AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF1D9E75),
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.hasData && snapshot.data != null) {
+          return const HomeScreen(); // CHANGE this to your real home screen class
+        }
+
+        return const WelcomeScreen();
+      },
     );
   }
 }

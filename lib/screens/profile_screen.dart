@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../providers/diary_provider.dart';
 import '../services/pdf_export_service.dart';
+import '../services/notification_service.dart';
 import '../utils/transitions.dart';
 import 'welcome_screen.dart';
 
@@ -97,14 +98,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
 
-    setState(() {
-      _dailyReminder = prefs.getBool('daily_reminder') ?? true;
-      _riskAlerts = prefs.getBool('risk_alerts') ?? true;
+    final dailyReminder = prefs.getBool('daily_reminder') ?? true;
+    final riskAlerts = prefs.getBool('risk_alerts') ?? true;
+    final hour = prefs.getInt('reminder_hour') ?? 21;
+    final minute = prefs.getInt('reminder_minute') ?? 0;
 
-      final hour = prefs.getInt('reminder_hour') ?? 21;
-      final minute = prefs.getInt('reminder_minute') ?? 0;
+    setState(() {
+      _dailyReminder = dailyReminder;
+      _riskAlerts = riskAlerts;
       _reminderTime = TimeOfDay(hour: hour, minute: minute);
     });
+
+    if (_dailyReminder) {
+      await NotificationService.scheduleDailyReminder(
+        hour: _reminderTime.hour,
+        minute: _reminderTime.minute,
+      );
+    } else {
+      await NotificationService.cancelDailyReminder();
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -114,6 +126,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.setBool('risk_alerts', _riskAlerts);
     await prefs.setInt('reminder_hour', _reminderTime.hour);
     await prefs.setInt('reminder_minute', _reminderTime.minute);
+
+    if (_dailyReminder) {
+      await NotificationService.scheduleDailyReminder(
+        hour: _reminderTime.hour,
+        minute: _reminderTime.minute,
+      );
+    } else {
+      await NotificationService.cancelDailyReminder();
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -186,9 +207,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (picked == null) return;
 
     setState(() => _reminderTime = picked);
+
     await _saveSettings();
 
-    _showSnackBar('Reminder time saved.');
+    _showSnackBar(
+      _dailyReminder
+          ? 'Reminder updated to ${_formatTime(_reminderTime)}.'
+          : 'Reminder time saved. Turn on Daily Reminder to activate it.',
+    );
   }
 
   Future<void> _clearAllData() async {
@@ -229,58 +255,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _exportPdf() async {
-  if (_isGuest) {
-    _showSnackBar(
-      'Please sign in to export PDF report.',
-      isError: true,
-    );
-    return;
-  }
+    if (_isGuest) {
+      _showSnackBar(
+        'Please sign in to export PDF report.',
+        isError: true,
+      );
+      return;
+    }
 
-  final provider = context.read<DiaryProvider>();
+    final provider = context.read<DiaryProvider>();
 
-  if (provider.entries.isEmpty) {
-    _showSnackBar('No entries to export yet.');
-    return;
-  }
+    if (provider.entries.isEmpty) {
+      _showSnackBar('No entries to export yet.');
+      return;
+    }
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const AlertDialog(
-      content: Row(
-        children: [
-          CircularProgressIndicator(color: Color(0xFF1D9E75)),
-          SizedBox(width: 16),
-          Text('Generating PDF...'),
-        ],
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(color: Color(0xFF1D9E75)),
+            SizedBox(width: 16),
+            Text('Generating PDF...'),
+          ],
+        ),
       ),
-    ),
-  );
-
-  try {
-    final user = FirebaseAuth.instance.currentUser;
-
-    final path = await PdfExportService.exportDiary(
-      provider.entries,
-      userName: user?.displayName,
-      userEmail: user?.email,
     );
 
-    if (!mounted) return;
-    Navigator.pop(context);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    await Share.shareXFiles(
-      [XFile(path)],
-      subject: 'My Emotion Diary Export',
-      text: 'Here is my emotion diary export from the AI Emotion Diary app.',
-    );
-  } catch (e) {
-    if (!mounted) return;
-    Navigator.pop(context);
-    _showSnackBar('Export failed: $e', isError: true);
+      final path = await PdfExportService.exportDiary(
+        provider.entries,
+        userName: user?.displayName,
+        userEmail: user?.email,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      await Share.shareXFiles(
+        [XFile(path)],
+        subject: 'My Emotion Diary Export',
+        text: 'Here is my emotion diary export from the AI Emotion Diary app.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showSnackBar('Export failed: $e', isError: true);
+    }
   }
-}
 
   Future<void> _goToWelcome() async {
     Navigator.of(context).pushAndRemoveUntil(
@@ -378,22 +404,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showSnackBar(
-  String message, {
-  bool isError = false,
-  Duration duration = const Duration(seconds: 3),
-}) {
-  if (!mounted) return;
+    String message, {
+    bool isError = false,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    if (!mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      duration: duration,
-      backgroundColor:
-          isError ? const Color(0xFFE24B4A) : const Color(0xFF1D9E75),
-      behavior: SnackBarBehavior.floating,
-    ),
-  );
-}
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: duration,
+        backgroundColor:
+            isError ? const Color(0xFFE24B4A) : const Color(0xFF1D9E75),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
   String _formatTime(TimeOfDay time) {
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
@@ -404,7 +430,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     final isGuest = _isGuest;
 
     return Scaffold(
@@ -423,7 +448,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 _profileHeader(),
                 const SizedBox(height: 20),
-                const SizedBox(height: 24),
 
                 _sectionTitle('Account'),
                 _card(
@@ -434,7 +458,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Edit Profile',
                         onTap: _showEditProfileDialog,
                       ),
-                      
                     ],
                   ),
                 ),
@@ -451,7 +474,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         value: _dailyReminder,
                         onChanged: (v) async {
                           setState(() => _dailyReminder = v);
+
                           await _saveSettings();
+
+                          _showSnackBar(
+                            v
+                                ? 'Daily reminder set at ${_formatTime(_reminderTime)}.'
+                                : 'Daily reminder turned off.',
+                          );
                         },
                       ),
                       _divider(),
@@ -468,6 +498,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onChanged: (v) async {
                           setState(() => _riskAlerts = v);
                           await _saveSettings();
+
+                          _showSnackBar(
+                            v
+                                ? 'Risk alerts turned on.'
+                                : 'Risk alerts turned off.',
+                          );
                         },
                       ),
                     ],
@@ -482,7 +518,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _TapTile(
                         icon: Icons.picture_as_pdf_outlined,
-                        label: isGuest ? 'Export PDF Report (Sign in required)' : 'Export Diary as PDF',
+                        label: isGuest
+                            ? 'Export PDF Report (Sign in required)'
+                            : 'Export Diary as PDF',
                         textColor: isGuest ? const Color(0xFFB4B2A9) : null,
                         onTap: _exportPdf,
                       ),
@@ -651,7 +689,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
 
 class _SwitchTile extends StatelessWidget {
   final IconData icon;
