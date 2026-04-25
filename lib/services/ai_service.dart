@@ -304,32 +304,35 @@ Notes:
     }
   }
 
-  // ── FIX 5: Dart-side streak computation ───────────────────────────────────
-  // entries must be sorted chronologically (oldest first) before calling this
   static Map<String, int> _computeStreaks(List<DiaryEntry> sortedEntries) {
     if (sortedEntries.isEmpty) {
       return {'positiveStreak': 0, 'negativeStreak': 0};
     }
 
-    // Work from newest → oldest to find current streaks
-    final reversed = sortedEntries.reversed.toList();
-
-    int positiveStreak = 0;
-    for (final e in reversed) {
-      if (e.mood >= 3) {
-        positiveStreak++;
-      } else {
-        break;
+ 
+    final Map<String, DiaryEntry> latestPerDay = {};
+    for (final e in sortedEntries) {
+      final dayKey = '${e.createdAt.year}-${e.createdAt.month}-${e.createdAt.day}';
+      final existing = latestPerDay[dayKey];
+      if (existing == null || e.createdAt.isAfter(existing.createdAt)) {
+        latestPerDay[dayKey] = e;
       }
     }
 
+    final dailyEntries = latestPerDay.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    // 计算 streak
+    int positiveStreak = 0;
+    for (final e in dailyEntries) {
+      if (e.mood >= 3) positiveStreak++;
+      else break;
+    }
+
     int negativeStreak = 0;
-    for (final e in reversed) {
-      if (e.mood <= 1) {
-        negativeStreak++;
-      } else {
-        break;
-      }
+    for (final e in dailyEntries) {
+      if (e.mood <= 1) negativeStreak++;
+      else break;
     }
 
     return {
