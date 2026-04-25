@@ -401,7 +401,7 @@ class DiaryProvider extends ChangeNotifier {
       id: id,
       entryText: entryText,
       mood: mood,
-      createdAt: existing.createdAt,
+      createdAt: DateTime.now(),
       aiReflection: existing.aiReflection,
       triggerKeyword: existing.triggerKeyword,
       emotionIntensity: existing.emotionIntensity,
@@ -413,6 +413,7 @@ class DiaryProvider extends ChangeNotifier {
     );
 
     _entries[idx] = updated;
+    _entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final user = _auth.currentUser;
 

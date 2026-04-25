@@ -1216,10 +1216,17 @@ class _RecentTile extends StatelessWidget {
     );
   }
 
-  String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
+ String _timeAgo(DateTime dt) {
+    final now = DateTime.now();
+    print('now: $now');
+    print('entry createdAt: $dt');
+    print('diff: ${now.difference(dt)}');
+    
+    final diff = now.difference(dt);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
+    return '${(diff.inDays / 30).floor()}mo ago';
   }
 }
