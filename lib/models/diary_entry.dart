@@ -87,7 +87,7 @@ class DiaryEntry {
       'id': id,
       'entryText': entryText,
       'mood': mood,
-      'createdAt': createdAt.toIso8601String(),
+      'createdAt': createdAt.toUtc().toIso8601String(),
       'aiReflection': aiReflection,
       'triggerKeyword': triggerKeyword,
       'emotionIntensity': emotionIntensity,
@@ -104,7 +104,15 @@ class DiaryEntry {
       id: (map['id'] ?? '').toString(),
       entryText: (map['entryText'] ?? '').toString(),
       mood: (map['mood'] ?? 2) as int,
-      createdAt: DateTime.parse(map['createdAt'].toString()),
+      createdAt: () {
+        final raw = map['createdAt'].toString();
+        final dt = DateTime.parse(raw);
+        // 如果字符串没有时区标记（不含Z或+），当本地时间处理
+        if (!raw.contains('Z') && !raw.contains('+')) {
+          return dt; // 已经是本地时间，不用转
+        }
+        return dt.toLocal();
+      }(),
       aiReflection: map['aiReflection']?.toString(),
       triggerKeyword: map['triggerKeyword']?.toString(),
       emotionIntensity: map['emotionIntensity'] != null
