@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import '../screens/home_screen.dart';
 import '../utils/transitions.dart';
-import '../screens/wellness_screen.dart';
 import '../providers/activity_provider.dart';
 
 enum BreathPhase { inhale, holdIn, exhale, holdOut }
@@ -26,8 +25,8 @@ class _BreathingScreenState extends State<BreathingScreen>
   int _countdown = 4;
   int _cyclesCompleted = 0;
   bool _running = false;
+  bool _isCompleted = false;
 
-  // Box breathing: 4-4-4-4
   static const _phaseDuration = {
     BreathPhase.inhale: 4,
     BreathPhase.holdIn: 4,
@@ -87,6 +86,7 @@ class _BreathingScreenState extends State<BreathingScreen>
   void _start() {
     setState(() {
       _running = true;
+      _isCompleted = false;
       _phase = BreathPhase.inhale;
       _countdown = 4;
       _cyclesCompleted = 0;
@@ -104,7 +104,6 @@ class _BreathingScreenState extends State<BreathingScreen>
 
     final duration = _phaseDuration[_phase]!;
 
-    // Animate scale
     if (_phase == BreathPhase.inhale) {
       _scaleController.forward(from: 0);
     } else if (_phase == BreathPhase.exhale) {
@@ -119,7 +118,6 @@ class _BreathingScreenState extends State<BreathingScreen>
 
     if (!mounted || !_running) return;
 
-    // Advance to next phase
     final phases = BreathPhase.values;
     final nextIdx = (phases.indexOf(_phase) + 1) % phases.length;
     final nextPhase = phases[nextIdx];
@@ -127,10 +125,15 @@ class _BreathingScreenState extends State<BreathingScreen>
     if (nextPhase == BreathPhase.inhale) {
       setState(() => _cyclesCompleted++);
       if (_cyclesCompleted >= 4) {
-        setState(() => _running = false);
-        context.read<ActivityProvider>().logActivity(
-          activityName: 'Box Breathing',
-        );
+        setState(() {
+          _running = false;
+          _isCompleted = true;
+        });
+        if (mounted) {
+          context.read<ActivityProvider>().logActivity(
+            activityName: 'Box Breathing',
+          );
+        }
         return;
       }
     }
@@ -163,7 +166,6 @@ class _BreathingScreenState extends State<BreathingScreen>
                 style: TextStyle(color: Colors.white54, fontSize: 13)),
             const Spacer(),
 
-            // Animated breathing circle
             AnimatedBuilder(
               animation: Listenable.merge([_scaleAnim, _rotateController]),
               builder: (ctx, _) {
@@ -207,12 +209,14 @@ class _BreathingScreenState extends State<BreathingScreen>
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 300),
                             child: Text(
-                              _running
-                                  ? _phaseLabel[_phase]!
-                                  : _cyclesCompleted >= 4
-                                      ? 'Done! 🎉'
+                              _isCompleted
+                                  ? 'Done! 🎉'
+                                  : _running
+                                      ? _phaseLabel[_phase]!
                                       : 'Ready',
-                              key: ValueKey(_phase.toString() + _running.toString()),
+                              key: ValueKey(_phase.toString() +
+                                  _running.toString() +
+                                  _isCompleted.toString()),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w600,
@@ -241,7 +245,6 @@ class _BreathingScreenState extends State<BreathingScreen>
 
             const Spacer(),
 
-            // Cycle progress
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Column(
@@ -273,7 +276,6 @@ class _BreathingScreenState extends State<BreathingScreen>
 
             const SizedBox(height: 32),
 
-            // Phase guide
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Row(
@@ -292,39 +294,82 @@ class _BreathingScreenState extends State<BreathingScreen>
 
             const SizedBox(height: 32),
 
-            // Start/Stop button
+            // ── Buttons ────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _running ? _stop : _start,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _running
-                        ? Colors.white12
-                        : const Color(0xFF1D9E75),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(27)),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    _running
-                        ? 'Stop'
-                        : _cyclesCompleted >= 4
-                            ? 'Start Again'
-                            : 'Start',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
+              child: _isCompleted
+                  ? _buildCompletedButtons()
+                  : _buildRunningButton(),
             ),
             const SizedBox(height: 32),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRunningButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: _running ? _stop : _start,
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              _running ? Colors.white12 : const Color(0xFF1D9E75),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(27)),
+          elevation: 0,
+        ),
+        child: Text(
+          _running ? 'Stop' : 'Start',
+          style:
+              const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompletedButtons() {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton.icon(
+            onPressed: _handleBack,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1D9E75),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(27)),
+              elevation: 0,
+            ),
+            icon: const Icon(Icons.check_circle_outline, size: 20),
+            label: const Text('Activity Complete!',
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600)),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 46,
+          child: OutlinedButton.icon(
+            onPressed: _start,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white70,
+              side: const BorderSide(color: Colors.white24),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(27)),
+            ),
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Do it Again',
+                style: TextStyle(fontSize: 14)),
+          ),
+        ),
+      ],
     );
   }
 }

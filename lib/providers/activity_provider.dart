@@ -8,7 +8,7 @@ class ActivityProvider extends ChangeNotifier {
 
   List<ActivityLog> get logs => _logs;
 
-  // ── Recent logs ───────────────────────────────────────────────────────────
+  // ── Filtered logs ─────────────────────────────────────────────────────────
 
   List<ActivityLog> get last7Days {
     final cutoff = DateTime.now().subtract(const Duration(days: 7));
@@ -20,6 +20,44 @@ class ActivityProvider extends ChangeNotifier {
 
   List<ActivityLog> get recentLogs {
     return [..._logs]
+      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+  }
+
+  List<ActivityLog> get logsToday {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return _logs
+        .where((l) => !l.completedAt.isBefore(today))
+        .toList()
+      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+  }
+
+  List<ActivityLog> get logsThisWeek {
+    final now = DateTime.now();
+    // Start of current week (Monday)
+    final startOfWeek = DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+    return _logs
+        .where((l) => !l.completedAt.isBefore(startOfWeek))
+        .toList()
+      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+  }
+
+  List<ActivityLog> get logsThisMonth {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    return _logs
+        .where((l) => !l.completedAt.isBefore(startOfMonth))
+        .toList()
+      ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+  }
+
+  List<ActivityLog> get logsThisYear {
+    final now = DateTime.now();
+    final startOfYear = DateTime(now.year, 1, 1);
+    return _logs
+        .where((l) => !l.completedAt.isBefore(startOfYear))
+        .toList()
       ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
   }
 
@@ -101,5 +139,4 @@ class ActivityProvider extends ChangeNotifier {
   Future<void> forceRefresh() async {
     await _loadLogs();
   }
-
 }
