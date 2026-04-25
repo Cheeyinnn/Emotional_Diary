@@ -28,8 +28,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _riskAlerts = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 0);
 
-  String _wellnessGoal = 'Reduce Stress';
-
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
 
@@ -102,7 +100,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() {
       _dailyReminder = prefs.getBool('daily_reminder') ?? true;
       _riskAlerts = prefs.getBool('risk_alerts') ?? true;
-      _wellnessGoal = prefs.getString('wellness_goal') ?? 'Reduce Stress';
 
       final hour = prefs.getInt('reminder_hour') ?? 21;
       final minute = prefs.getInt('reminder_minute') ?? 0;
@@ -115,7 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     await prefs.setBool('daily_reminder', _dailyReminder);
     await prefs.setBool('risk_alerts', _riskAlerts);
-    await prefs.setString('wellness_goal', _wellnessGoal);
     await prefs.setInt('reminder_hour', _reminderTime.hour);
     await prefs.setInt('reminder_minute', _reminderTime.minute);
   }
@@ -381,59 +377,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showGoalPicker() {
-    final goals = [
-      'Reduce Stress',
-      'Improve Sleep',
-      'Build Positivity',
-      'Manage Anxiety',
-      'Understand Emotions',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Choose Wellness Goal',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A2E),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...goals.map(
-                (goal) => ListTile(
-                  title: Text(goal),
-                  trailing: _wellnessGoal == goal
-                      ? const Icon(Icons.check, color: Color(0xFF1D9E75))
-                      : null,
-                  onTap: () async {
-                    setState(() => _wellnessGoal = goal);
-                    await _saveSettings();
-
-                    if (!mounted) return;
-                    Navigator.pop(ctx);
-                    _showSnackBar('Wellness goal updated.');
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showSnackBar(
   String message, {
   bool isError = false,
@@ -491,12 +434,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Edit Profile',
                         onTap: _showEditProfileDialog,
                       ),
-                      _divider(),
-                      _TapTile(
-                        icon: Icons.flag_outlined,
-                        label: 'Wellness Goal: $_wellnessGoal',
-                        onTap: _showGoalPicker,
-                      ),
+                      
                     ],
                   ),
                 ),
