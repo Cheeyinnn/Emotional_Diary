@@ -446,13 +446,7 @@ class _HomeTabState extends State<_HomeTab> {
                           ],
                         ),
                       ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.notifications_outlined,
-                        color: Color(0xFF1A1A2E),
-                      ),
-                      onPressed: () {},
-                    ),
+            
                   ],
                 ),
               ),
