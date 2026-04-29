@@ -20,7 +20,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
 
   String _name = 'Guest';
   String _email = 'guest@emotiondiary.app';
@@ -31,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoadingProfile = true;
   bool _isSavingProfile = false;
+  bool _isSendingResetEmail = false;
 
   bool get _isGuest => FirebaseAuth.instance.currentUser == null;
 
@@ -44,7 +44,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _emailCtrl.dispose();
     super.dispose();
   }
 
@@ -56,7 +55,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _name = 'Guest';
         _email = 'guest@emotiondiary.app';
         _nameCtrl.text = _name;
-        _emailCtrl.text = _email;
         _isLoadingProfile = false;
       });
       return;
@@ -81,12 +79,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? authName!
                 : authEmail?.split('@').first ?? 'User';
 
-        _email = authEmail?.isNotEmpty == true
-            ? authEmail!
-            : data?['email']?.toString() ?? 'No email';
+        _email = authEmail?.isNotEmpty == true ? authEmail! : 'No email';
 
         _nameCtrl.text = _name;
-        _emailCtrl.text = _email;
         _isLoadingProfile = false;
       });
     } catch (e) {
@@ -146,10 +141,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     final newName = _nameCtrl.text.trim();
-    final newEmail = _emailCtrl.text.trim();
 
-    if (newName.isEmpty || newEmail.isEmpty) {
-      _showSnackBar('Name and email cannot be empty.', isError: true);
+    if (newName.isEmpty) {
+      _showSnackBar('Name cannot be empty.', isError: true);
       return;
     }
 
@@ -158,37 +152,371 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': newName,
-        'email': newEmail,
+        'email': user.email,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       await user.updateDisplayName(newName);
 
-      if (newEmail != user.email) {
-        await user.verifyBeforeUpdateEmail(newEmail);
-      }
-
       setState(() {
         _name = newName;
-        _email = newEmail;
       });
 
       if (!mounted) return;
       Navigator.pop(context);
       _showSnackBar('Profile updated successfully.');
-    } on FirebaseAuthException catch (e) {
-      _showSnackBar(
-        e.code == 'requires-recent-login'
-            ? 'Please sign in again before changing email.'
-            : 'Failed to update profile: ${e.message}',
-        isError: true,
-      );
     } catch (e) {
       _showSnackBar('Failed to update profile: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isSavingProfile = false);
     }
   }
+
+  Future<void> _resetPasswordByEmail() async {
+    if (_isGuest) {
+      _showSnackBar('Please sign in to reset password.', isError: true);
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email;
+
+    if (email == null || email.trim().isEmpty) {
+      _showSnackBar('No email found for this account.', isError: true);
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Text(
+          'A password reset link will be sent to:\n\n$email\n\nDo you want to continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isSendingResetEmail = true);
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
+
+      if (!mounted) return;
+
+      _showSnackBar(
+        'Password reset email sent. Please check your inbox or spam folder.',
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to send reset email.';
+
+      if (e.code == 'invalid-email') {
+        message = 'Invalid email address.';
+      } else if (e.code == 'user-not-found') {
+        message = 'No account found for this email.';
+      } else if (e.message != null) {
+        message = e.message!;
+      }
+
+      _showSnackBar(message, isError: true);
+    } catch (e) {
+      _showSnackBar('Failed to send reset email: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isSendingResetEmail = false);
+    }
+  }
+
+  void _showEditProfileDialog() {
+    if (_isGuest) {
+      _showSnackBar('Please sign in to edit your profile.', isError: true);
+      return;
+    }
+
+    _nameCtrl.text = _name;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Profile'),
+        content: TextField(
+          controller: _nameCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Name',
+            prefixIcon: Icon(Icons.person_outline),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _isSavingProfile ? null : () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: _isSavingProfile ? null : _saveProfile,
+            child: _isSavingProfile
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showChangePasswordDialog() {
+  if (_isGuest) {
+    _showSnackBar('Please sign in to change password.', isError: true);
+    return;
+  }
+
+  final currentPasswordCtrl = TextEditingController();
+  final newPasswordCtrl = TextEditingController();
+  final confirmPasswordCtrl = TextEditingController();
+
+  bool isChanging = false;
+  bool obscureCurrent = true;
+  bool obscureNew = true;
+  bool obscureConfirm = true;
+  String? dialogMessage;
+  bool isDialogError = true;
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          void showDialogMessage(String message, {bool isError = true}) {
+            setDialogState(() {
+              dialogMessage = message;
+              isDialogError = isError;
+            });
+          }
+
+          Future<void> changePassword() async {
+            final user = FirebaseAuth.instance.currentUser;
+            final email = user?.email;
+
+            if (user == null || email == null) {
+              showDialogMessage('User account not found.');
+              return;
+            }
+
+            final currentPassword = currentPasswordCtrl.text.trim();
+            final newPassword = newPasswordCtrl.text.trim();
+            final confirmPassword = confirmPasswordCtrl.text.trim();
+
+            if (currentPassword.isEmpty ||
+                newPassword.isEmpty ||
+                confirmPassword.isEmpty) {
+              showDialogMessage('Please fill in all password fields.');
+              return;
+            }
+
+            if (newPassword.length < 6) {
+              showDialogMessage(
+                'New password must be at least 6 characters.',
+              );
+              return;
+            }
+
+            if (newPassword != confirmPassword) {
+              showDialogMessage(
+                'New password and confirm password do not match.',
+              );
+              return;
+            }
+
+            if (currentPassword == newPassword) {
+              showDialogMessage(
+                'New password cannot be the same as current password.',
+              );
+              return;
+            }
+
+            setDialogState(() {
+              isChanging = true;
+              dialogMessage = null;
+            });
+
+            try {
+              final credential = EmailAuthProvider.credential(
+                email: email,
+                password: currentPassword,
+              );
+
+              await user.reauthenticateWithCredential(credential);
+              await user.updatePassword(newPassword);
+
+              if (!mounted) return;
+
+              Navigator.pop(ctx);
+              _showSnackBar('Password changed successfully.');
+            } on FirebaseAuthException catch (e) {
+              String message = 'Failed to change password.';
+
+              if (e.code == 'wrong-password' ||
+                  e.code == 'invalid-credential') {
+                message = 'Current password is incorrect.';
+              } else if (e.code == 'weak-password') {
+                message = 'The new password is too weak.';
+              } else if (e.code == 'requires-recent-login') {
+                message = 'Please sign in again before changing password.';
+              } else if (e.message != null) {
+                message = e.message!;
+              }
+
+              showDialogMessage(message);
+            } catch (e) {
+              showDialogMessage('Failed to change password: $e');
+            } finally {
+              if (mounted) {
+                setDialogState(() => isChanging = false);
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Change Password'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: currentPasswordCtrl,
+                    obscureText: obscureCurrent,
+                    decoration: InputDecoration(
+                      labelText: 'Current Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureCurrent
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscureCurrent = !obscureCurrent;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPasswordCtrl,
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      prefixIcon: const Icon(Icons.lock_reset_outlined),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureNew
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscureNew = !obscureNew;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPasswordCtrl,
+                    obscureText: obscureConfirm,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureConfirm
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscureConfirm = !obscureConfirm;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+
+                  if (dialogMessage != null) ...[
+                    const SizedBox(height: 14),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDialogError
+                            ? const Color(0xFFFFEBEE)
+                            : const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDialogError
+                              ? const Color(0xFFE24B4A)
+                              : const Color(0xFF1D9E75),
+                        ),
+                      ),
+                      child: Text(
+                        dialogMessage!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDialogError
+                              ? const Color(0xFFE24B4A)
+                              : const Color(0xFF1D9E75),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isChanging ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isChanging ? null : changePassword,
+                child: isChanging
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Change'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
@@ -328,63 +656,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _goToWelcome();
   }
 
-  void _showEditProfileDialog() {
-    if (_isGuest) {
-      _showSnackBar('Please sign in to edit your profile.', isError: true);
-      return;
-    }
-
-    _nameCtrl.text = _name;
-    _emailCtrl.text = _email;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: _isSavingProfile ? null : () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: _isSavingProfile ? null : _saveProfile,
-            child: _isSavingProfile
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showPrivacyDialog() {
     showDialog(
       context: context,
@@ -458,6 +729,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Edit Profile',
                         onTap: _showEditProfileDialog,
                       ),
+                      _divider(),
+                      _TapTile(
+                        icon: Icons.lock_outline,
+                        label: 'Change Password',
+                        onTap: _showChangePasswordDialog,
+                      ),
+                      _divider(),
+                      _TapTile(
+                        icon: Icons.email_outlined,
+                        label: _isSendingResetEmail
+                            ? 'Sending Reset Email...'
+                            : 'Reset Password via Email',
+                        textColor: const Color(0xFF1D9E75),
+                        onTap: _isSendingResetEmail
+                            ? () {}
+                            : _resetPasswordByEmail,
+                      ),
                     ],
                   ),
                 ),
@@ -473,26 +761,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Daily Reminder',
                         value: _dailyReminder,
                         onChanged: (v) async {
-  setState(() => _dailyReminder = v);
+                          setState(() => _dailyReminder = v);
 
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool('daily_reminder', v);
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setBool('daily_reminder', v);
 
-  if (v) {
-    await NotificationService.scheduleDailyReminder(
-      hour: _reminderTime.hour,
-      minute: _reminderTime.minute,
-    );
+                          if (v) {
+                            await NotificationService.scheduleDailyReminder(
+                              hour: _reminderTime.hour,
+                              minute: _reminderTime.minute,
+                            );
 
-    _showSnackBar(
-      'Daily reminder set at ${_formatTime(_reminderTime)}.',
-    );
-  } else {
-    await NotificationService.cancelDailyReminder();
+                            _showSnackBar(
+                              'Daily reminder set at ${_formatTime(_reminderTime)}.',
+                            );
+                          } else {
+                            await NotificationService.cancelDailyReminder();
 
-    _showSnackBar('Daily reminder turned off.');
-  }
-},
+                            _showSnackBar('Daily reminder turned off.');
+                          }
+                        },
                       ),
                       _divider(),
                       _TapTile(

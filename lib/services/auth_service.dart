@@ -8,19 +8,28 @@ class AuthService {
   Future<User?> signIn(String email, String password) async {
     try {
       final result = await _auth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
-      return result.user;
+
+      await result.user?.reload();
+      final user = _auth.currentUser;
+
+      if (user != null && !user.emailVerified) {
+        await _auth.signOut();
+        throw 'email-not-verified';
+      }
+
+      return user;
     } on FirebaseAuthException catch (e) {
       throw e.code;
     }
   }
 
-  Future<User?> register(String name, String email, String password) async {
+  Future<void> register(String name, String email, String password) async {
     try {
       final result = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
 
@@ -32,19 +41,64 @@ class AuthService {
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'name': name,
-          'email': email,
+          'email': email.trim(),
+          'emailVerified': false,
           'createdAt': FieldValue.serverTimestamp(),
         });
 
-        await user.reload();
-        return _auth.currentUser;
-      }
+        await user.sendEmailVerification();
 
-      return null;
+        await _auth.signOut();
+      }
     } on FirebaseAuthException catch (e) {
       throw e.code;
     } catch (e) {
+      if (e == 'email-not-verified') {
+        throw e;
+      }
       throw 'firestore-save-failed';
+    }
+  }
+
+  Future<void> updateEmailVerifiedStatus() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await user.reload();
+    final refreshedUser = _auth.currentUser;
+
+    if (refreshedUser != null && refreshedUser.emailVerified) {
+      await _firestore.collection('users').doc(refreshedUser.uid).set({
+        'emailVerified': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  Future<void> resendVerificationEmail(String email, String password) async {
+    try {
+      final result = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final user = result.user;
+
+      if (user != null) {
+        await user.reload();
+
+        if (user.emailVerified) {
+          await _auth.signOut();
+          throw 'already-verified';
+        }
+
+        await user.sendEmailVerification();
+        await _auth.signOut();
+      }
+    } on FirebaseAuthException catch (e) {
+      throw e.code;
+    } catch (e) {
+      throw e.toString();
     }
   }
 
@@ -54,7 +108,7 @@ class AuthService {
 
   Future<void> resetPassword(String email) async {
     try {
-      await _auth.sendPasswordResetEmail(email: email);
+      await _auth.sendPasswordResetEmail(email: email.trim());
     } on FirebaseAuthException catch (e) {
       throw e.code;
     }

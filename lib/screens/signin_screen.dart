@@ -39,51 +39,58 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signIn() async {
-    final email = _emailCtrl.text.trim();
-    final password = _passCtrl.text.trim();
+  final email = _emailCtrl.text.trim();
+  final password = _passCtrl.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      _showSnackBar('Please enter email and password.');
-      return;
+  if (email.isEmpty || password.isEmpty) {
+    _showSnackBar('Please enter email and password.');
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    await _authService.signIn(email, password);
+
+    await _authService.updateEmailVerifiedStatus();
+
+    if (!mounted) return;
+
+    await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
+
+    if (!mounted) return;
+
+    await context.read<ActivityProvider>().loadLogs();
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      fadeScaleRoute(const HomeScreen()),
+      (route) => false,
+    );
+  } catch (e) {
+    String message = 'Sign in failed. Please try again.';
+
+    if (e == 'user-not-found') {
+      message = 'No account found for this email.';
+    } else if (e == 'wrong-password' || e == 'invalid-credential') {
+      message = 'Incorrect email or password.';
+    } else if (e == 'invalid-email') {
+      message = 'Please enter a valid email address.';
+    } else if (e == 'user-disabled') {
+      message = 'This account has been disabled.';
+    } else if (e == 'email-not-verified') {
+      message = 'Please verify your email before signing in.';
     }
 
-    setState(() => _isLoading = true);
-
-    try {
-      await _authService.signIn(email, password);
-
-      if (!mounted) return;
-
-      // Load activity logs from Firestore after sign in
-      await context.read<ActivityProvider>().loadLogs();
-
-      if (!mounted) return;
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        fadeScaleRoute(const HomeScreen()),
-        (route) => false,
-      );
-    } catch (e) {
-      String message = 'Sign in failed. Please try again.';
-
-      if (e == 'user-not-found') {
-        message = 'No account found for this email.';
-      } else if (e == 'wrong-password' || e == 'invalid-credential') {
-        message = 'Incorrect email or password.';
-      } else if (e == 'invalid-email') {
-        message = 'Please enter a valid email address.';
-      } else if (e == 'user-disabled') {
-        message = 'This account has been disabled.';
-      }
-
-      _showSnackBar(message);
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    _showSnackBar(message);
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _resetPassword() async {
     final email = _emailCtrl.text.trim();

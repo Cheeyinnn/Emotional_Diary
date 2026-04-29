@@ -1,10 +1,6 @@
-import 'package:emotion_diary/screens/home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../utils/transitions.dart';
 import '../services/auth_service.dart';
-import '../providers/activity_provider.dart';
-import '../providers/diary_provider.dart';
 import 'signin_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -35,69 +31,68 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _register() async {
-    final name = _nameCtrl.text.trim();
-    final email = _emailCtrl.text.trim();
-    final password = _passCtrl.text.trim();
-    final confirmPassword = _confirmCtrl.text.trim();
+  final name = _nameCtrl.text.trim();
+  final email = _emailCtrl.text.trim();
+  final password = _passCtrl.text.trim();
+  final confirmPassword = _confirmCtrl.text.trim();
 
-    if (name.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      _showSnackBar('Please fill in all fields.');
-      return;
+  if (name.isEmpty ||
+      email.isEmpty ||
+      password.isEmpty ||
+      confirmPassword.isEmpty) {
+    _showSnackBar('Please fill in all fields.');
+    return;
+  }
+
+  if (!email.contains('@') || !email.contains('.')) {
+    _showSnackBar('Please enter a valid email address.');
+    return;
+  }
+
+  if (password != confirmPassword) {
+    _showSnackBar('Passwords do not match.');
+    return;
+  }
+
+  if (password.length < 6) {
+    _showSnackBar('Password must be at least 6 characters.');
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    await _authService.register(name, email, password);
+
+    if (!mounted) return;
+
+    _showSnackBar(
+      'Verification email sent. Please verify your email before signing in.',
+    );
+
+    Navigator.of(context).pushReplacement(
+      fadeScaleRoute(const SignInScreen()),
+    );
+  } catch (e) {
+    String message = 'Registration failed. Please try again.';
+
+    if (e == 'email-already-in-use') {
+      message = 'This email is already registered.';
+    } else if (e == 'invalid-email') {
+      message = 'Please enter a valid email address.';
+    } else if (e == 'weak-password') {
+      message = 'Password is too weak.';
+    } else if (e == 'firestore-save-failed') {
+      message = 'Account created, but profile save failed.';
     }
 
-    if (password != confirmPassword) {
-      _showSnackBar('Passwords do not match.');
-      return;
-    }
-
-    if (password.length < 6) {
-      _showSnackBar('Password must be at least 6 characters.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      await _authService.register(name, email, password);
-
-      if (!mounted) return;
-      await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
-
-      if (!mounted) return;
-
-      // New account starts empty — loadLogs is a no-op but keeps things consistent
-      await context.read<ActivityProvider>().loadLogs();
-
-      if (!mounted) return;
-
-      _showSnackBar('Account created successfully.');
-
-      Navigator.of(context).pushReplacement(
-        fadeScaleRoute(const HomeScreen()),
-      );
-    } catch (e) {
-      String message = 'Registration failed. Please try again.';
-
-      if (e == 'email-already-in-use') {
-        message = 'This email is already registered.';
-      } else if (e == 'invalid-email') {
-        message = 'Please enter a valid email address.';
-      } else if (e == 'weak-password') {
-        message = 'Password is too weak.';
-      } else if (e == 'firestore-save-failed') {
-        message = 'Account created, but profile save failed.';
-      }
-
-      _showSnackBar(message);
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    _showSnackBar(message);
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context)

@@ -126,6 +126,7 @@ All newline characters inside strings MUST be escaped as \\n.
 
       // ── FIX 3: replaced print() with debugPrint() ─────────────────────────
       debugPrint("analyzeDiaryEntry STATUS: ${response.statusCode}");
+      debugPrint("analyzeDiaryEntry BODY: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
