@@ -413,21 +413,21 @@ Notes:
         'activitySteps':
             '1. Sit comfortably and close your eyes.\n2. Inhale for 4 counts, hold for 4, exhale for 4.\n3. Repeat 4 times and notice the calm.',
         'reflectiveSummary':
-            'You showed up today even when things felt heavy. That takes courage — tomorrow holds new possibilities.',
+            'You showed up today even when things felt heavy. That takes courage tomorrow holds new possibilities.',
       },
       // mood 1 — Bad
       {
         'emotionIntensity': 6.0,
         'triggerKeyword': 'daily pressure',
         'validation':
-            "Feeling down is a natural part of life. It's okay not to be okay — this moment will pass.",
+            "Feeling down is a natural part of life. It's okay not to be okay this moment will pass.",
         'patternInsight': '',
         'activitySuggestion': 'Guided Meditation',
         'activityDuration': '10 min',
         'activitySteps':
             '1. Find a quiet spot and sit comfortably.\n2. Breathe slowly and let your thoughts drift by.\n3. Stay with the stillness for a few minutes.',
         'reflectiveSummary':
-            'Every step forward counts, even the small ones. Keep going — you are doing better than you think.',
+            'Every step forward counts, even the small ones. Keep going you are doing better than you think.',
       },
       // mood 2 — Okay
       {
@@ -448,7 +448,7 @@ Notes:
         'emotionIntensity': 5.0,
         'triggerKeyword': 'positive moments',
         'validation':
-            "It's wonderful that you're feeling good today. Savour this feeling — you deserve it.",
+            "It's wonderful that you're feeling good today. Savour this feeling you deserve it.",
         'patternInsight': '',
         'activitySuggestion': 'Mindful Walk',
         'activityDuration': '15 min',
