@@ -353,23 +353,54 @@ class DiaryProvider extends ChangeNotifier {
     }
   }
 
-  // ── 修改后的 addEntry，支持可选的 createdAt 参数 ──────────
   Future<Map<String, dynamic>> addEntry({
     required String entryText,
     required int mood,
-    DateTime? createdAt, // 新增参数
+    DateTime? createdAt,
   }) async {
-    final finalDate = createdAt ?? DateTime.now(); // 如果传了就用传的，没传就用现在的时间
-    
-    final entry = DiaryEntry(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      entryText: entryText,
-      mood: mood,
-      createdAt: finalDate, // 使用处理后的日期
-    );
+    final finalDate = createdAt ?? DateTime.now();
 
-    // 将新条目添加到列表并重新排序，确保补录的日期出现在日历正确的位置
-    _entries.add(entry);
+    // 🔥 STEP 1：找同一天 entry
+    final sameDayIndex = _entries.indexWhere((e) =>
+        e.createdAt.year == finalDate.year &&
+        e.createdAt.month == finalDate.month &&
+        e.createdAt.day == finalDate.day);
+
+    DiaryEntry entry;
+
+    if (sameDayIndex != -1) {
+      // ✅ 已存在 → REPLACE
+      final existing = _entries[sameDayIndex];
+
+      entry = DiaryEntry(
+        id: existing.id, // 🔥 保持 ID
+        entryText: entryText,
+        mood: mood,
+        createdAt: existing.createdAt, // 🔥 不改日期
+        aiReflection: existing.aiReflection,
+        triggerKeyword: existing.triggerKeyword,
+        emotionIntensity: existing.emotionIntensity,
+        activitySuggestion: existing.activitySuggestion,
+        activityDuration: existing.activityDuration,
+        activitySteps: existing.activitySteps,
+        validation: existing.validation,
+        patternInsight: existing.patternInsight,
+      );
+
+      _entries[sameDayIndex] = entry;
+    } else {
+      // ✅ 不存在 → 新增
+      entry = DiaryEntry(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        entryText: entryText,
+        mood: mood,
+        createdAt: finalDate,
+      );
+
+      _entries.add(entry);
+    }
+
+    // 🔥 STEP 2：排序
     _entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final user = _auth.currentUser;
@@ -377,16 +408,23 @@ class DiaryProvider extends ChangeNotifier {
     if (user == null) {
       await _saveLocalEntries(_guestStorageKey);
     } else {
-      await _saveEntryToFirestore(user.uid, entry);
+      // 🔥 用 update（存在就改，不存在就建）
+      await _updateEntryInFirestore(user.uid, entry);
       await _cacheUserEntriesLocally(user.uid);
     }
 
     notifyListeners();
 
+    // 🔥 STEP 3：AI 分析（保持原逻辑）
     final aiResult = await _analyzeAndUpdate(entry);
-    return {'entry': entry, 'aiResult': aiResult};
-  }
 
+    return {
+      'entry': entry,
+      'aiResult': aiResult,
+    };
+  }
+      
+  
   Future<Map<String, dynamic>> editEntry({
     required String id,
     required String entryText,
@@ -401,7 +439,7 @@ class DiaryProvider extends ChangeNotifier {
       id: id,
       entryText: entryText,
       mood: mood,
-      createdAt: DateTime.now(),
+      createdAt: existing.createdAt,
       aiReflection: existing.aiReflection,
       triggerKeyword: existing.triggerKeyword,
       emotionIntensity: existing.emotionIntensity,
