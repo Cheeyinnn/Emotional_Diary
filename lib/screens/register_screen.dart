@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../utils/transitions.dart';
 import '../services/auth_service.dart';
 import 'signin_screen.dart';
+import 'package:provider/provider.dart';
+import '../providers/diary_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -63,6 +65,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   try {
     await _authService.register(name, email, password);
+
+    if (!mounted) return;
+
+    // ✅ ONLY register new account will bring guest data
+    await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
 
     if (!mounted) return;
 

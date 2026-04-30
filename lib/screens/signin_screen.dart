@@ -56,7 +56,10 @@ class _SignInScreenState extends State<SignInScreen> {
 
     if (!mounted) return;
 
-    await context.read<DiaryProvider>().migrateGuestEntriesToCurrentUser();
+    // ✅ IMPORTANT:
+    // Do NOT migrate guest entries here.
+    // Existing login users should only load their own account data.
+    await context.read<DiaryProvider>().loadEntries();
 
     if (!mounted) return;
 
