@@ -164,7 +164,7 @@ class _InsightScreenState extends State<InsightScreen> {
             _emptyCard('No summary yet. Log entries and tap refresh!'),
           const SizedBox(height: 20),
 
-          
+           
           //const SizedBox(height: 32),
 
           // 在 Recent Entries 下面，SizedBox(height: 32) 之前加
@@ -273,99 +273,195 @@ class _InsightScreenState extends State<InsightScreen> {
       );
 }
 
-// ─── Line Chart ─────────────────────────────────────────────────────────────
+  // ─── Line Chart ─────────────────────────────────────────────────────────────
 
-class _MoodLineChart extends StatelessWidget {
-  final List<DiaryEntry> entries;
-  const _MoodLineChart({required this.entries});
+  class _MoodLineChart extends StatelessWidget {
+    final List<DiaryEntry> entries;
 
-  @override
-  Widget build(BuildContext context) {
-    // Build spots: sorted by date, x = days ago (0-6), y = mood (0-4)
-    final now = DateTime.now();
-    final spots = entries
-        .map((e) {
-          final daysAgo = now.difference(e.createdAt).inDays;
-          return FlSpot((6 - daysAgo).toDouble(), e.mood.toDouble());
-        })
-        .where((s) => s.x >= 0 && s.x <= 6)
-        .toList()
-      ..sort((a, b) => a.x.compareTo(b.x));
+    const _MoodLineChart({required this.entries});
 
-    final dayLabels = List.generate(7, (i) {
-      final d = now.subtract(Duration(days: 6 - i));
-      return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.weekday % 7];
-    });
+    @override
+    Widget build(BuildContext context) {
+      // Use date-only calculation to avoid time difference causing wrong day position
+      final rawNow = DateTime.now();
+      final today = DateTime(rawNow.year, rawNow.month, rawNow.day);
 
-    return LineChart(
-      LineChartData(
-        minY: 0,
-        maxY: 4,
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 1,
-          getDrawingHorizontalLine: (_) => FlLine(
-            color: const Color(0xFFF0F0F0),
-            strokeWidth: 1,
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: 1,
-              reservedSize: 28,
-              getTitlesWidget: (v, _) {
-                const emojis = ['😣','😞','😐','😊','😄'];
-                final i = v.toInt();
-                if (i < 0 || i > 4) return const SizedBox();
-                return Text(emojis[i], style: const TextStyle(fontSize: 12));
-              },
+      // Keep only the latest entry for each day
+      final Map<String, DiaryEntry> latestEntryByDay = {};
+
+      for (final entry in entries) {
+        final entryDate = DateTime(
+          entry.createdAt.year,
+          entry.createdAt.month,
+          entry.createdAt.day,
+        );
+
+        final key = '${entryDate.year}-${entryDate.month}-${entryDate.day}';
+
+        if (!latestEntryByDay.containsKey(key) ||
+            entry.createdAt.isAfter(latestEntryByDay[key]!.createdAt)) {
+          latestEntryByDay[key] = entry;
+        }
+      }
+
+      // Build chart points: x = 0 to 6, where 6 is today
+      final spots = latestEntryByDay.values
+          .map((entry) {
+            final entryDate = DateTime(
+              entry.createdAt.year,
+              entry.createdAt.month,
+              entry.createdAt.day,
+            );
+
+            final daysAgo = today.difference(entryDate).inDays;
+
+            return FlSpot(
+              (6 - daysAgo).toDouble(),
+              entry.mood.toDouble(),
+            );
+          })
+          .where((spot) => spot.x >= 0 && spot.x <= 6)
+          .toList()
+        ..sort((a, b) => a.x.compareTo(b.x));
+
+      final dayLabels = List.generate(7, (i) {
+        final date = today.subtract(Duration(days: 6 - i));
+        return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.weekday % 7];
+      });
+
+      if (spots.isEmpty) {
+        return const Center(
+          child: Text(
+            'No mood data for the last 7 days.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF888780),
             ),
           ),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 24,
-              getTitlesWidget: (v, _) {
-                final i = v.toInt();
-                if (i < 0 || i >= dayLabels.length) return const SizedBox();
-                return Text(dayLabels[i],
-                    style: const TextStyle(
-                        fontSize: 9, color: Color(0xFFB4B2A9)));
-              },
+        );
+      }
+
+      return LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: 6,
+          minY: 0,
+          maxY: 4,
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: 1,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: const Color(0xFFF0F0F0),
+              strokeWidth: 1,
             ),
           ),
-        ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: const Color(0xFF1D9E75),
-            barWidth: 2.5,
-            dotData: FlDotData(
-              show: true,
-              getDotPainter: (spot, _, __, ___) => FlDotCirclePainter(
-                radius: 4,
-                color: Colors.white,
-                strokeWidth: 2,
-                strokeColor: const Color(0xFF1D9E75),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: 1,
+                reservedSize: 28,
+                getTitlesWidget: (value, meta) {
+                  const emojis = ['😣', '😞', '😐', '😊', '😄'];
+                  final index = value.toInt();
+
+                  if (index < 0 || index > 4) {
+                    return const SizedBox();
+                  }
+
+                  return Text(
+                    emojis[index],
+                    style: const TextStyle(fontSize: 12),
+                  );
+                },
               ),
             ),
-            belowBarData: BarAreaData(
-              show: true,
-              color: const Color(0xFF1D9E75).withOpacity(0.08),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 24,
+                interval: 1,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+
+                  if (index < 0 || index >= dayLabels.length) {
+                    return const SizedBox();
+                  }
+
+                  return Text(
+                    dayLabels[index],
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFFB4B2A9),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-        ],
-      ),
-    );
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((spot) {
+                  const moodLabels = [
+                    'Very Low',
+                    'Low',
+                    'Neutral',
+                    'Good',
+                    'Very Good',
+                  ];
+
+                  final moodIndex = spot.y.toInt().clamp(0, 4);
+
+                  return LineTooltipItem(
+                    moodLabels[moodIndex],
+                    const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: const Color(0xFF1D9E75),
+              barWidth: 2.5,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: Colors.white,
+                    strokeWidth: 2,
+                    strokeColor: const Color(0xFF1D9E75),
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: const Color(0xFF1D9E75).withOpacity(0.08),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
   }
-}
+
 
 // ─── Bar Chart ───────────────────────────────────────────────────────────────
 

@@ -435,19 +435,25 @@ class DiaryProvider extends ChangeNotifier {
 
     final existing = _entries[idx];
 
+    // IMPORTANT:
+    // When user edits mood/text, old AI result should be cleared.
+    // AI reflection, validation, trigger, activity suggestion, etc.
+    // must be regenerated based on the new edited content.
     final updated = DiaryEntry(
       id: id,
       entryText: entryText,
       mood: mood,
       createdAt: existing.createdAt,
-      aiReflection: existing.aiReflection,
-      triggerKeyword: existing.triggerKeyword,
-      emotionIntensity: existing.emotionIntensity,
-      activitySuggestion: existing.activitySuggestion,
-      activityDuration: existing.activityDuration,
-      activitySteps: existing.activitySteps,
-      validation: existing.validation,
-      patternInsight: existing.patternInsight,
+
+      // Clear old AI data before re-analyzing
+      aiReflection: null,
+      triggerKeyword: null,
+      emotionIntensity: null,
+      activitySuggestion: null,
+      activityDuration: null,
+      activitySteps: null,
+      validation: null,
+      patternInsight: null,
     );
 
     _entries[idx] = updated;
@@ -464,10 +470,21 @@ class DiaryProvider extends ChangeNotifier {
 
     notifyListeners();
 
+    // Re-submit edited entry to AI again
     final aiResult = await _analyzeAndUpdate(updated);
-    return {'entry': updated, 'aiResult': aiResult};
-  }
 
+    // Get the latest version after AI update
+    final latestEntry = _entries.firstWhere(
+      (e) => e.id == id,
+      orElse: () => updated,
+    );
+
+    return {
+      'entry': latestEntry,
+      'aiResult': aiResult,
+    };
+  }
+  
   Future<void> deleteEntry(String id) async {
     _entries.removeWhere((e) => e.id == id);
 

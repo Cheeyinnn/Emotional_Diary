@@ -46,7 +46,7 @@ class _MoodDetailScreenState extends State<MoodDetailScreen>
   }
 
   @override
-  void dispose() {
+  void dispose() { 
     _slideCtrl.dispose();
     super.dispose();
   }
