@@ -132,45 +132,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
+  Future<void> _saveProfile(BuildContext dialogContext) async {
+  final user = FirebaseAuth.instance.currentUser;
 
-    if (user == null) {
-      _showSnackBar('Please sign in to edit your profile.', isError: true);
-      return;
-    }
-
-    final newName = _nameCtrl.text.trim();
-
-    if (newName.isEmpty) {
-      _showSnackBar('Name cannot be empty.', isError: true);
-      return;
-    }
-
-    setState(() => _isSavingProfile = true);
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'name': newName,
-        'email': user.email,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      await user.updateDisplayName(newName);
-
-      setState(() {
-        _name = newName;
-      });
-
-      if (!mounted) return;
-      Navigator.pop(context);
-      _showSnackBar('Profile updated successfully.');
-    } catch (e) {
-      _showSnackBar('Failed to update profile: $e', isError: true);
-    } finally {
-      if (mounted) setState(() => _isSavingProfile = false);
-    }
+  if (user == null) {
+    _showSnackBar('Please sign in to edit your profile.', isError: true);
+    return;
   }
+
+  final newName = _nameCtrl.text.trim();
+
+  if (newName.isEmpty) {
+    _showSnackBar('Name cannot be empty.', isError: true);
+    return;
+  }
+
+  setState(() => _isSavingProfile = true);
+
+  try {
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'name': newName,
+      'email': user.email,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await user.updateDisplayName(newName);
+
+    if (!mounted) return;
+
+    setState(() {
+      _name = newName;
+      _isSavingProfile = false;
+    });
+
+    Navigator.pop(dialogContext); // close dialog only
+    _showSnackBar('Profile updated successfully.');
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isSavingProfile = false);
+    }
+    _showSnackBar('Failed to update profile: $e', isError: true);
+  }
+}
 
   Future<void> _resetPasswordByEmail() async {
     if (_isGuest) {
@@ -262,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: _isSavingProfile ? null : _saveProfile,
+            onPressed: _isSavingProfile ? null : () => _saveProfile(ctx),
             child: _isSavingProfile
                 ? const SizedBox(
                     width: 18,
